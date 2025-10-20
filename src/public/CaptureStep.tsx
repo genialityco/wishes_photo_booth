@@ -10,13 +10,13 @@ export default function CaptureStep({
   mirror = true,
   boxSize = "min(88vw, 30svh)",
   onCaptured,
-  wish = "",
+  wish = { name: "", wish: "" },
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
   onCaptured: (payload: { framed: string; raw: string }) => void;
-  wish?: string;
+  wish?: { name: string, wish: string};
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
@@ -240,7 +240,7 @@ videoCtx.drawImage(
       targetW,
       targetH,
       mirror,
-      wish, // Estará vacío en la captura inicial
+     
     });
 
     setFlash(true);

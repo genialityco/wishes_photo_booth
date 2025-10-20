@@ -8,14 +8,14 @@ export function captureWithFrame({
   targetW,
   targetH,
   mirror,
-  wish,
+  
 }: {
   video: HTMLVideoElement;
   frame: HTMLImageElement | null;
   targetW: number;
   targetH: number;
   mirror: boolean;
-  wish?: string;
+ 
 }) {
   const canvas = document.createElement("canvas");
   canvas.width = targetW;

@@ -1,10 +1,27 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as THREE from 'three';
+
+interface BasketDimensions {
+  width: number;
+  height: number;
+  depth: number;
+  wallThickness: number;
+  handleRadius: number;
+  handleHeight: number;
+  labelSize: number;
+}
+
+interface BasketOptions {
+  size?: number;
+  color?: number;
+  labelText?: string;
+}
 
 /**
  * 🛒 Cesta Dorada con Manijas Luminosas
  * Diseño metálico dorado, manijas redondeadas, brillo y reflejos realistas.
  */
-export function createShoppingBasketGeometry(options = {}) {
+export function createShoppingBasketGeometry(options: BasketOptions = {}): THREE.Group {
   const {
     size = 1,
     color = 0xffd700,  // 💛 Dorado brillante
@@ -13,7 +30,7 @@ export function createShoppingBasketGeometry(options = {}) {
 
   const group = new THREE.Group();
 
-  const DIMENSIONS = {
+  const DIMENSIONS: BasketDimensions = {
     width: 6, height: 2, depth: 4,
     wallThickness: 0.08,
     handleRadius: 0.18,
@@ -42,7 +59,7 @@ export function createShoppingBasketGeometry(options = {}) {
 }
 
 // 🧺 BASE DORADA METÁLICA
-function createGoldenBasketBase(dim, color) {
+function createGoldenBasketBase(dim: BasketDimensions, color: number): THREE.Group {
   const group = new THREE.Group();
 
   const outerGeom = createTaperedBox(dim.width, dim.height, dim.depth, 12, 6, 10);
@@ -66,7 +83,7 @@ function createGoldenBasketBase(dim, color) {
 }
 
 // 📦 GEOMETRÍA CON LIGERA INCLINACIÓN
-function createTaperedBox(w, h, d, sw, sh, sd) {
+function createTaperedBox(w: number, h: number, d: number, sw: number, sh: number, sd: number): THREE.BoxGeometry {
   const geom = new THREE.BoxGeometry(w, h*2, d * 2, sw, sh, sd); // ⬅️ Doble profundidad
   const pos = geom.attributes.position;
 
@@ -87,7 +104,7 @@ function createTaperedBox(w, h, d, sw, sh, sd) {
 
 // 🪶 MANIJAS DORADAS LUMINOSAS
 // 🪶 MANIJAS DORADAS LUMINOSAS (más arriba del borde)
-function createGoldenHandles(dim) {
+function createGoldenHandles(dim: BasketDimensions): THREE.Mesh[] {
   const handleMat = new THREE.MeshPhysicalMaterial({
     color: 0xffd700,
     metalness: 0.5,
@@ -98,7 +115,7 @@ function createGoldenHandles(dim) {
     clearcoat: 1.0,
   });
 
-  const handles = [];
+  const handles: THREE.Mesh[] = [];
   const yOffset = dim.height * 0.8; // ⬆️ Ahora se elevan sobre el borde del basket
 
   [-dim.depth / 2 + 0.25, dim.depth / 2 - 0.25].forEach(zOffset => {
@@ -121,7 +138,7 @@ function createGoldenHandles(dim) {
 
 
 // 🏷️ ETIQUETA FRONTAL
-function createReliefLabel(dim, text) {
+function createReliefLabel(dim: BasketDimensions, text: string): THREE.Group {
   const group = new THREE.Group();
 
   const labelGeom = new THREE.BoxGeometry(dim.labelSize, 0.9, 0.04);
@@ -152,7 +169,7 @@ function createReliefLabel(dim, text) {
 }
 
 // 🛡️ BORDE SUPERIOR REFORZADO
-function createRim(dim, color) {
+function createRim(dim: BasketDimensions, color: number): THREE.Mesh {
   const rimGeom = new THREE.TorusGeometry(dim.width / 2 * 1.02, 0.08, 8, 24);
   rimGeom.rotateX(-Math.PI / 2);
 
