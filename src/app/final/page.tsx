@@ -20,6 +20,15 @@ export default function WishesAnimationPage() {
   const router = useRouter();
   const params = useParams();
   const [eventId, setEventId] = useState<string>("Dr8vPWpmnq1HtcEOCSEn");
+  interface Event {
+    id: string;
+    name: string;
+    settings: {
+      backgroundColor: string;
+    };
+    // Add other properties as needed to match the structure of eventData
+  }
+  
   const [event, setEvent] = useState<Event | null>(null);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -188,7 +197,7 @@ export default function WishesAnimationPage() {
 
   return (
     <div>
-        <AnimationComponent photoUrls={wishes.map(wish => wish.photoUrl)} message="fenalco geniality" modelPath="/models/Air_Balloon.fbx"></AnimationComponent>
+        <AnimationComponent photoUrls={wishes.map(wish => wish.photoUrl)} message="fenalco geniality"></AnimationComponent>
     </div>
   )
 }

@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import ShoppingBasketScene from './ShoppingBasketScene';
 
-export default function AnimationComponent({ photoUrls = [], message = 'HOLA' }) {
+export default function AnimationComponent({ photoUrls = [] as (string | undefined)[], message = 'HOLA' as string }) {
   return (
     <div style={{ 
       width: '100%', 
