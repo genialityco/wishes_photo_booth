@@ -137,11 +137,12 @@ useEffect(() => {
 
   const thickness = 8;
   const size = 20;
-  const maxLineWidth = 200;
+  const maxLineWidth = 180;
   const lineHeight = 24;
   const verticalOffset = -20; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
-
-  const words = message.split(' ');
+ const letterSpacing = 3;
+  
+   const words = message.split(' ');
   const lines = [];
   let currentLine = '';
 
@@ -166,26 +167,52 @@ useEffect(() => {
   const allAreas = [];
 
   lines.forEach((line, i) => {
-    const shapes = font.generateShapes(line, size);
-    const geom = new THREE.ShapeGeometry(shapes);
-    geom.computeBoundingBox();
+    // 🔥 GENERAR CADA LETRA POR SEPARADO PARA CONTROLAR EL ESPACIADO
+    let totalLineWidth = 0;
+    const letterGeometries = [];
+    
+    for (let charIndex = 0; charIndex < line.length; charIndex++) {
+      const char = line[charIndex];
+      if (char === ' ') {
+        totalLineWidth += size * 0.5 + letterSpacing; // Espacio para espacios en blanco
+        continue;
+      }
+      
+      const shapes = font.generateShapes(char, size);
+      const geom = new THREE.ShapeGeometry(shapes);
+      geom.computeBoundingBox();
+      
+      const charWidth = geom.boundingBox.max.x - geom.boundingBox.min.x;
+      letterGeometries.push({
+        geom,
+        xOffset: totalLineWidth,
+        width: charWidth
+      });
+      
+      totalLineWidth += charWidth + letterSpacing;
+    }
 
-    const centerX = (geom.boundingBox.max.x + geom.boundingBox.min.x) / 2;
+    const centerX = totalLineWidth / 2;
     const totalHeight = lines.length * lineHeight;
     const yOffset = (totalHeight / 2) - (i * lineHeight) + verticalOffset;
 
-    const pos = geom.attributes.position;
-    const idx = geom.index;
-    for (let j = 0; j < idx.count; j += 3) {
-      const a = idx.getX(j), b = idx.getX(j + 1), c = idx.getX(j + 2);
-      const pa = new THREE.Vector3(pos.getX(a) - centerX, pos.getY(a) + yOffset, 0);
-      const pb = new THREE.Vector3(pos.getX(b) - centerX, pos.getY(b) + yOffset, 0);
-      const pc = new THREE.Vector3(pos.getX(c) - centerX, pos.getY(c) + yOffset, 0);
-      const area = new THREE.Vector3().crossVectors(pb.clone().sub(pa), pc.clone().sub(pa)).length() / 2;
-      allAreas.push(area);
-      allTriangles.push({ pa, pb, pc, area });
-    }
-    geom.dispose();
+    // 🔥 PROCESAR CADA LETRA CON SU OFFSET
+    letterGeometries.forEach(({ geom, xOffset }) => {
+      const pos = geom.attributes.position;
+      const idx = geom.index;
+      
+      for (let j = 0; j < idx.count; j += 3) {
+        const a = idx.getX(j), b = idx.getX(j + 1), c = idx.getX(j + 2);
+        const pa = new THREE.Vector3(pos.getX(a) + xOffset - centerX, pos.getY(a) + yOffset, 0);
+        const pb = new THREE.Vector3(pos.getX(b) + xOffset - centerX, pos.getY(b) + yOffset, 0);
+        const pc = new THREE.Vector3(pos.getX(c) + xOffset - centerX, pos.getY(c) + yOffset, 0);
+        const area = new THREE.Vector3().crossVectors(pb.clone().sub(pa), pc.clone().sub(pa)).length() / 2;
+        allAreas.push(area);
+        allTriangles.push({ pa, pb, pc, area });
+      }
+      
+      geom.dispose();
+    });
   });
 
   const totalArea = allAreas.reduce((sum, a) => sum + a, 0);
@@ -208,7 +235,6 @@ useEffect(() => {
     return new THREE.Vector3(p2d.x, p2d.y, z);
   });
 }, [font, message, numBaskets]);
-
   // 🎬 ANIMACIÓN
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();

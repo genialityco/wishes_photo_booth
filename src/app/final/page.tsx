@@ -25,6 +25,7 @@ export default function WishesAnimationPage() {
     name: string;
     settings: {
       backgroundColor: string;
+      textFinal: string; // Agregué textFinal para AnimationComponent
     };
     // Add other properties as needed to match the structure of eventData
   }
@@ -197,7 +198,10 @@ export default function WishesAnimationPage() {
 
   return (
     <div>
-        <AnimationComponent photoUrls={wishes.map(wish => wish.photoUrl)} message="fenalco geniality"></AnimationComponent>
+        <AnimationComponent 
+          photoUrls={wishes.map(wish => wish.photoUrl)} 
+          message={event?.settings.textFinal || "fenalco geniality"} // Usar textFinal del evento si está disponible
+        />
     </div>
   )
 }
