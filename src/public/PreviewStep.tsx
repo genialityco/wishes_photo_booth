@@ -12,7 +12,7 @@ export default function PreviewStep({
   onRetake,
   onConfirm,
   wish = { name: "", wish: "" }, // Cambié el tipo de wish a un objeto con name y wish
-  wishStyle = { fontSize: "40px", fontWeight: "bold", color: "red" },
+
 }: {
   framedShot: string; // mostramos la foto con marco
   boxSize?: string;

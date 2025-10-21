@@ -73,8 +73,8 @@ export default function ParticleAnimation({
     
     startTimeRef.current = Date.now();
     
-    let convergenceX = centerX;
-    let convergenceY = centerY;
+    const convergenceX = centerX;
+    const convergenceY = centerY;
     let lightBallY = centerY;
     let lightBallSize = 0;
     let lightBallOpacity = 0;

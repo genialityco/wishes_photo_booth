@@ -243,9 +243,9 @@ export default function PhotoBoothWizard({
   return (
     <div className="h-[90vh] w-[100vw] flex items-center flex-col justify-center"
     style={{ backgroundImage: step === "success" ? "url(/CORTES/CIERRE/FONDO-CIERRE.png)": "url(/CORTES/HOME/FONDO_HOME.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}>
-      {showAnimation && framedShot && (
+      {showAnimation && framedShotWithText && (
         <ParticleAnimation 
-          imageSrc={framedShot}
+          imageSrc={framedShotWithText}
           onComplete={handleAnimationComplete}
         />
       )}

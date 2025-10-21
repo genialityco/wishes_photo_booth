@@ -1,14 +1,12 @@
-import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 
 import { createShoppingBasketGeometry } from './BasquetShape.ts';
 
-const fragRes = { width: 18, height: 12, resW: 15, resH: 10 };
-const numFrags = fragRes.resW * fragRes.resH;
-
 export default function ShoppingBasketScene({ photoUrls, message }) {
+  // ✅ LOADER DENTRO DEL CANVAS
   const font = useLoader(FontLoader, '/fonts/helvetiker_regular.typeface.json');
   const textures = useLoader(THREE.TextureLoader, photoUrls);
 
@@ -24,11 +22,20 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   const phaseStartTimes = useRef({});
   const sparkleRefs = useRef(Array.from({ length: 220 }, () => React.createRef()));
   
-  // PHOTOS REFS
+  // 📸 PHOTOS REFS (IMPORTANTE!)
   const imageRefs = useRef(textures.map(() => React.createRef()));
   const photoGroupRefs = useRef(textures.map(() => React.createRef()));
   const disStartTimes = useRef(Array.from({ length: textures.length }, () => 0));
-  const targetsAssigned = useRef(Array.from({ length: textures.length }, () => false));
+
+  // Nuevos refs para partículas luminosas
+  const particleRefs = useRef([]);
+  const particleTargetBasket = useRef(null);
+  
+  // 🎥 NUEVOS REFS PARA CÁMARA SUAVIZADA
+  const previousPhase = useRef(0);
+  const cameraTransitionStart = useRef(0);
+  const cameraStartPosition = useRef(new THREE.Vector3());
+  const cameraStartTarget = useRef(new THREE.Vector3());
 
   // POSICIONES INICIALES CANASTAS
   const initialBasketPositions = useMemo(() => 
@@ -44,246 +51,234 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
     }), [numBaskets]
   );
 
-  // POSICIONES COLLAGE FOTOS - ORGANIZADAS DE ARRIBA A ABAJO
-  const photoCollagePositions = useMemo(() => {
-    const positions = [];
-    const gridCols = 4; // Número de columnas en la cuadrícula
-    const spacingX = 12; // Espaciado horizontal
-    const spacingY = 8; // Espaciado vertical
-    const startY = 15; // Posición Y inicial (parte superior)
+  // 📸 POSICIONES COLLAGE FOTOS - MÁS SEPARADAS
+ const photoCollagePositions = useMemo(() => {
+  const positions = [];
+  const cols = Math.ceil(Math.sqrt(textures.length));
+  const rows = Math.ceil(textures.length / cols);
+  const spacingX = 18; // Reducido para más compacto
+  const spacingY = 14; // Reducido para más compacto
+  
+  for (let i = 0; i < textures.length; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
     
-    for (let i = 0; i < textures.length; i++) {
-      const col = i % gridCols;
-      const row = Math.floor(i / gridCols);
-      
-      positions.push({
-        x: (col - (gridCols - 1) / 2) * spacingX,
-        y: startY - row * spacingY, // De arriba hacia abajo
-        z: 25 + Math.random() * 10, // Menor variación en Z para mejor organización
-        rotation: (Math.random() - 0.5) * 0.1, // Menor rotación para mejor legibilidad
-        rotationY: (Math.random() - 0.5) * 0.2,
-        scale: 0.8 + Math.random() * 0.4
-      });
-    }
-    return positions;
-  }, [textures.length]);
+    positions.push({
+      x: (col - (cols - 1) / 2) * spacingX,
+      y: ((rows - 1) / 2 - row) * spacingY,
+      z: -5 + Math.random() * 5, // 🔥 REDUCIDO: estaba en 25-40, ahora 15-20
+      rotation: (Math.random() - 0.5) * 0.15, // Menor rotación
+      rotationY: (Math.random() - 0.5) * 0.3, // Menor rotación Y
+      scale: 1.0 + Math.random() * 0.3 // Escala un poco más grande
+    });
+  }
+  return positions;
+}, [textures.length]);
 
-  // APPEARANCE DELAYS TOP TO BOTTOM - TIEMPO ENTRE FOTOS
-  const appearanceDelays = useMemo(() => {
-    const indices = [...Array(textures.length).keys()];
-    // Ordenar por posición Y (de mayor a menor - de arriba a abajo)
-    indices.sort((a, b) => photoCollagePositions[b].y - photoCollagePositions[a].y);
-    return indices.reduce((acc, sortedIdx, order) => {
-      acc[sortedIdx] = order * 0.4; // Reducido a 0.4s entre fotos para que sea más rápido
-      return acc;
-    }, Array(textures.length).fill(0));
-  }, [photoCollagePositions, textures.length]);
-
-  // TIEMPO DE VISUALIZACIÓN ANTES DE DESINTEGRACIÓN
-  const viewTimeBeforeDisintegration = 2.5; // 2.5 segundos para ver cada foto
-
-  // RANDOM DISINTEGRATION DELAYS - AHORA INCLUYE TIEMPO DE VISUALIZACIÓN
+  // RANDOM DISINTEGRATION DELAYS
   const disRandomDelays = useMemo(() => 
-    textures.map(() => Math.random() * 1 + viewTimeBeforeDisintegration), // Mínimo 2.5s, máximo 3.5s
-  [textures.length, viewTimeBeforeDisintegration]);
+    textures.map(() => Math.random() * 3 + 0.5),
+  [textures.length]);
 
   // CAMINO CÁMARA
   const cameraPath = useRef([
+    { pos: new THREE.Vector3(0, 15, 80), look: new THREE.Vector3(-5, 0, 0) },
+    { pos: new THREE.Vector3(0, 8, 35), look: new THREE.Vector3(0, 5, 0) },
     { pos: new THREE.Vector3(-50, -30, 20), look: new THREE.Vector3(0, 0, 0) },
-    { pos: new THREE.Vector3(80, 40, -60), look: new THREE.Vector3(0, 20, 0) },
-    { pos: new THREE.Vector3(0, 30, 100), look: new THREE.Vector3(-5, 0, 40) },
-    { pos: new THREE.Vector3(0, 5, 120), look: new THREE.Vector3(0, 0, 0) }
+    { pos: new THREE.Vector3(0, 0, 100), look: new THREE.Vector3(0, 0, 0) }
   ]);
 
-  // GEOMETRÍA CANASTA
+  // 🛒 GEOMETRÍA CANASTA
   const basketGeometry = useMemo(() => createShoppingBasketGeometry(), []);
 
-  // FASES - AJUSTADO PARA DAR MÁS TIEMPO EN FASE 2
+  // Inicializar partículas
+  useEffect(() => {
+    particleRefs.current = Array.from({ length: 500 }, () => ({
+      position: new THREE.Vector3(),
+      velocity: new THREE.Vector3(),
+      active: false,
+      startTime: 0,
+      originalColor: new THREE.Color(),
+      meshRef: React.createRef()
+    }));
+
+    // Encontrar una canasta cercana como objetivo
+    if (basketRefs.current.length > 0) {
+      const nearbyBaskets = basketRefs.current
+        .filter(ref => ref.current)
+        .map(ref => ({
+          mesh: ref.current,
+          distance: ref.current.position.distanceTo(new THREE.Vector3(0, 0, 50))
+        }))
+        .filter(basket => basket.distance < 80)
+        .sort((a, b) => a.distance - b.distance);
+
+      if (nearbyBaskets.length > 0) {
+        particleTargetBasket.current = nearbyBaskets[0].mesh;
+      }
+    }
+  }, [phase]);
+
+  // FASES
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase(1), 3000),
       setTimeout(() => setPhase(2), 8000),
-      // Tiempo más largo en fase 2 para ver las fotos
-      setTimeout(() => setPhase(3), 18000 + textures.length * 600), // Ajustado dinámicamente
+      setTimeout(() => setPhase(3), 25000),
     ];
     return () => timers.forEach(clearTimeout);
-  }, [textures.length]);
-
-  // PUNTOS TEXTO
-  useEffect(() => {
-    if (!font) return;
-    console.log(`Generando "${message}" con ${numBaskets} canastas...`);
-
-    const thickness = 8;
-    const size = 40;
-    const shapes = font.generateShapes(message, size);
-    const shapeGeom = new THREE.ShapeGeometry(shapes);
-    shapeGeom.computeBoundingBox();
-    shapeGeom.center();
-
-    const position = shapeGeom.attributes.position;
-    const index = shapeGeom.index;
-    const triangles = [];
-    const areas = [];
-
-    for (let i = 0; i < index.count; i += 3) {
-      const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
-      const pa = new THREE.Vector3(position.getX(a), position.getY(a), 0);
-      const pb = new THREE.Vector3(position.getX(b), position.getY(b), 0);
-      const pc = new THREE.Vector3(position.getX(c), position.getY(c), 0);
-      const area = new THREE.Vector3().crossVectors(
-        pb.clone().sub(pa), pc.clone().sub(pa)
-      ).length() / 2;
-      areas.push(area);
-      triangles.push({ pa, pb, pc, area });
-    }
-
-    const totalArea = areas.reduce((sum, a) => sum + a, 0);
-
-    const getRandomPointInShape = () => {
-      let r = Math.random() * totalArea;
-      let triIndex = 0;
-      while (r > areas[triIndex]) { r -= areas[triIndex]; triIndex++; }
-      const tri = triangles[triIndex];
-      let u = Math.random(), v = Math.random();
-      if (u + v > 1) { u = 1 - u; v = 1 - v; }
-      return tri.pa.clone()
-        .add(tri.pb.clone().sub(tri.pa).multiplyScalar(u))
-        .add(tri.pc.clone().sub(tri.pa).multiplyScalar(v));
-    };
-
-    targetPositions.current = Array.from({ length: numBaskets }, () => {
-      const p2d = getRandomPointInShape();
-      const z = (Math.random() - 0.5) * thickness;
-      return new THREE.Vector3(p2d.x, p2d.y, z);
-    });
-
-    shapeGeom.dispose();
-  }, [font, message, numBaskets]);
-
-  // ASSIGN TARGETS
-  useEffect(() => {
-    if (phase !== 2) return;
-
-    textures.forEach((_, i) => {
-      if (targetsAssigned.current[i]) return;
-
-      const group = photoGroupRefs.current[i].current;
-      if (!group) return;
-
-      const photoPos = group.getWorldPosition(new THREE.Vector3());
-
-      const candidates = [];
-      for (let j = 0; j < numBasketsPhase1_2; j++) {
-        const basket = basketRefs.current[j].current;
-        if (!basket) continue;
-        const bPos = basket.getWorldPosition(new THREE.Vector3());
-        const dist = bPos.distanceTo(photoPos);
-        if (dist < 100) {
-          candidates.push({ j, dist });
-        }
-      }
-
-      if (candidates.length === 0) {
-        const j = Math.floor(Math.random() * numBasketsPhase1_2);
-        candidates.push({ j, dist: 0 });
-      }
-
-      candidates.sort((a, b) => a.dist - b.dist);
-      const numCandidates = Math.min(100, candidates.length);
-      candidates.length = numCandidates;
-
-      const mesh = imageRefs.current[i].current;
-      if (!mesh) return;
-
-      const targetAttr = mesh.geometry.getAttribute('targetPos');
-      let k = 0;
-      for (let gy = 0; gy < fragRes.resH; gy++) {
-        for (let gx = 0; gx < fragRes.resW; gx++) {
-          const candIdx = Math.floor(Math.random() * candidates.length);
-          const cand = candidates[candIdx];
-          const basket = basketRefs.current[cand.j].current;
-          const tPos = basket.getWorldPosition(new THREE.Vector3());
-          targetAttr.setXYZ(k, tPos.x, tPos.y, tPos.z);
-          k++;
-        }
-      }
-      targetAttr.needsUpdate = true;
-
-      targetsAssigned.current[i] = true;
-    });
-  }, [phase, textures]);
-
-  // SET FRAG ATTRIBUTES
-  const setFragAttributes = useCallback((mesh) => {
-    if (!mesh) return;
-
-    const w = fragRes.resW;
-    const h = fragRes.resH;
-
-    const uvOffsets = [];
-    const localPositions = [];
-    const randomDirs = [];
-    const fragDelays = [];
-    const targetPoss = []; // placeholders
-
-    for (let gy = 0; gy < h; gy++) {
-      for (let gx = 0; gx < w; gx++) {
-        uvOffsets.push(gx / w, gy / h);
-
-        const lx = (gx - (w - 1) / 2) * (fragRes.width / w);
-        const ly = (gy - (h - 1) / 2) * (fragRes.height / h);
-        const lz = 0;
-        localPositions.push(lx, ly, lz);
-
-        const rx = (Math.random() - 0.5) * 2;
-        const ry = (Math.random() - 0.5) * 2 + 1;
-        const rz = (Math.random() - 0.5) * 2;
-        randomDirs.push(rx, ry, rz);
-
-        const delay = ((h - 1 - gy) / h) * 1.0;
-        fragDelays.push(delay);
-
-        targetPoss.push(0, 0, 0);
-      }
-    }
-
-    mesh.geometry.setAttribute('uvOffset', new THREE.InstancedBufferAttribute(new Float32Array(uvOffsets), 2));
-    mesh.geometry.setAttribute('localPos', new THREE.InstancedBufferAttribute(new Float32Array(localPositions), 3));
-    mesh.geometry.setAttribute('randomDir', new THREE.InstancedBufferAttribute(new Float32Array(randomDirs), 3));
-    mesh.geometry.setAttribute('fragDelay', new THREE.InstancedBufferAttribute(new Float32Array(fragDelays), 1));
-    mesh.geometry.setAttribute('targetPos', new THREE.InstancedBufferAttribute(new Float32Array(targetPoss), 3));
   }, []);
 
-  useEffect(() => {
-    textures.forEach((_, i) => {
-      const mesh = imageRefs.current[i].current;
-      if (mesh) setFragAttributes(mesh);
-    });
-  }, [textures, setFragAttributes]);
+// PUNTOS TEXTO (con división automática en líneas)
+useEffect(() => {
+  if (!font) return;
+  console.log(`🛒 Generando texto multilínea para "${message}"...`);
 
-  // ANIMACIÓN
+  const thickness = 5;
+  const size = 20;
+  const maxLineWidth = 200;
+  const lineHeight = 18;
+
+  const words = message.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach(word => {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const testShapes = font.generateShapes(testLine, size);
+    const testGeom = new THREE.ShapeGeometry(testShapes);
+    testGeom.computeBoundingBox();
+    const width = testGeom.boundingBox.max.x - testGeom.boundingBox.min.x;
+    testGeom.dispose();
+
+    if (width > maxLineWidth && currentLine !== '') {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+
+  const allTriangles = [];
+  const allAreas = [];
+
+  lines.forEach((line, i) => {
+    const shapes = font.generateShapes(line, size);
+    const geom = new THREE.ShapeGeometry(shapes);
+    geom.computeBoundingBox();
+
+    const centerX = (geom.boundingBox.max.x + geom.boundingBox.min.x) / 2;
+    const totalHeight = lines.length * lineHeight;
+    const yOffset = (totalHeight / 2) - (i * lineHeight);
+
+    const pos = geom.attributes.position;
+    const idx = geom.index;
+    for (let j = 0; j < idx.count; j += 3) {
+      const a = idx.getX(j), b = idx.getX(j + 1), c = idx.getX(j + 2);
+      const pa = new THREE.Vector3(pos.getX(a) - centerX, pos.getY(a) + yOffset, 0);
+      const pb = new THREE.Vector3(pos.getX(b) - centerX, pos.getY(b) + yOffset, 0);
+      const pc = new THREE.Vector3(pos.getX(c) - centerX, pos.getY(c) + yOffset, 0);
+      const area = new THREE.Vector3().crossVectors(pb.clone().sub(pa), pc.clone().sub(pa)).length() / 2;
+      allAreas.push(area);
+      allTriangles.push({ pa, pb, pc, area });
+    }
+    geom.dispose();
+  });
+
+  const totalArea = allAreas.reduce((sum, a) => sum + a, 0);
+
+  const getRandomPointInShape = () => {
+    let r = Math.random() * totalArea;
+    let triIndex = 0;
+    while (r > allAreas[triIndex]) { r -= allAreas[triIndex]; triIndex++; }
+    const tri = allTriangles[triIndex];
+    let u = Math.random(), v = Math.random();
+    if (u + v > 1) { u = 1 - u; v = 1 - v; }
+    return tri.pa.clone()
+      .add(tri.pb.clone().sub(tri.pa).multiplyScalar(u))
+      .add(tri.pc.clone().sub(tri.pa).multiplyScalar(v));
+  };
+
+  targetPositions.current = Array.from({ length: numBaskets }, () => {
+    const p2d = getRandomPointInShape();
+    const z = (Math.random() - 0.5) * thickness;
+    return new THREE.Vector3(p2d.x, p2d.y, z);
+  });
+}, [font, message, numBaskets]);
+
+  // 🎬 ANIMACIÓN
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
     const cam = state.camera;
 
     if (!phaseStartTimes.current[phase]) phaseStartTimes.current[phase] = t;
-    const ease = (v) => (1 - Math.cos(Math.PI * v)) / 2;
 
-    // Cámara
-    const idx = Math.min(phase, cameraPath.current.length - 1);
-    const prog = phase >= 3 ? 1 : ease((t * 0.12) % 1);
-    cam.position.lerpVectors(
-      cameraPath.current[idx].pos,
-      cameraPath.current[Math.min(idx + 1, cameraPath.current.length - 1)].pos,
-      prog
-    );
-    const lookFrom = cameraPath.current[idx].look;
-    const lookTo = cameraPath.current[Math.min(idx + 1, cameraPath.current.length - 1)].look;
-    const lookPos = new THREE.Vector3().lerpVectors(lookFrom, lookTo, prog);
-    cam.lookAt(lookPos);
+    // 🎥 CÁMARA MEJORADA - TRANSICIONES SUAVIZADAS
+    const currentTime = t;
 
-    // Sparkles
+    // Inicializar transición si cambió la fase
+    if (phase !== previousPhase.current) {
+      cameraTransitionStart.current = currentTime;
+      cameraStartPosition.current = cam.position.clone();
+      
+      // Obtener dirección actual de la cámara
+      cameraStartTarget.current = new THREE.Vector3();
+      cam.getWorldDirection(cameraStartTarget.current);
+      cameraStartTarget.current.add(cam.position);
+      
+      previousPhase.current = phase;
+    }
+
+    const transitionDuration = 2.5;
+    const transitionProgress = Math.min(1, (currentTime - cameraTransitionStart.current) / transitionDuration);
+
+    // Easing personalizado para movimiento más cinematográfico
+    const smoothEase = (x) => {
+      return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+    };
+
+    const easedProgress = smoothEase(transitionProgress);
+
+    // Waypoints actual y siguiente
+    const currentWaypoint = cameraPath.current[Math.min(phase, cameraPath.current.length - 1)];
+    const nextWaypoint = cameraPath.current[Math.min(phase + 1, cameraPath.current.length - 1)];
+
+    if (transitionProgress < 1) {
+      // Durante transición: interpolación suave
+      cam.position.lerpVectors(
+        cameraStartPosition.current,
+        nextWaypoint.pos,
+        easedProgress
+      );
+      
+      const currentLook = new THREE.Vector3().lerpVectors(
+        cameraStartTarget.current, 
+        nextWaypoint.look, 
+        easedProgress
+      );
+      cam.lookAt(currentLook);
+    } else {
+      // Después de transición: movimiento orgánico suave
+      const idleTime = currentTime - cameraTransitionStart.current - transitionDuration;
+      cam.position.lerp(nextWaypoint.pos, 0.05);
+      
+      // Pequeño movimiento sinusoidal para hacerlo más vivo
+      cam.position.y += Math.sin(idleTime * 0.5) * 0.3;
+      cam.position.x += Math.cos(idleTime * 0.3) * 0.2;
+      
+      cam.lookAt(nextWaypoint.look);
+    }
+
+    // Field of View dinámico para mayor dramatismo
+    if (phase === 3) {
+      cam.fov = THREE.MathUtils.lerp(cam.fov, 45, 0.05);
+    } else {
+      cam.fov = THREE.MathUtils.lerp(cam.fov, 60, 0.05);
+    }
+    cam.updateProjectionMatrix();
+
+    // ✨ Sparkles
     sparkleRefs.current.forEach((ref, i) => {
       if (ref.current) {
         ref.current.material.opacity = 0.4 + Math.abs(Math.sin(t * 1.8 + i * 0.05)) * 0.6;
@@ -291,7 +286,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
       }
     });
 
-    // CANASTAS
+    // 🛒 CANASTAS
     basketRefs.current.forEach((basketRef, i) => {
       const basket = basketRef.current;
       if (!basket) return;
@@ -326,58 +321,134 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
       }
     });
 
-    // FOTOS ANIMADAS (FASE 2)
+    // 📸 FOTOS ANIMADAS (FASE 2) - CON EFECTO DE CAÍDA DESDE ARRIBA
     if (phase === 2) {
       const phase2Time = t - phaseStartTimes.current[2];
 
       photoGroupRefs.current.forEach((groupRef, i) => {
         const g = groupRef.current;
-        const m = imageRefs.current[i].current;
+        const m = imageRefs.current[i]?.current;
         if (!g || !m) return;
 
-        const delay = appearanceDelays[i];
+        const delay = i * 0.8;
         const localT = Math.max(0, phase2Time - delay);
-        const appearanceDuration = 1.5; // Reducido para aparición más rápida
+        const appearanceDuration = 3.0;
         const progress = Math.min(1, localT / appearanceDuration);
 
         const collagePos = photoCollagePositions[i];
         if (!collagePos) return;
 
-        const startY = 90;
-        const endY = collagePos.y || 0;
+        const startY = 120;
+        const endY = collagePos.y;
         
-        const arcProgress = ease(progress);
-        const currentY = startY + (endY - startY) * arcProgress;
+        const continuousProgress = progress + (localT - appearanceDuration) * 0.1;
+        const currentY = startY + (endY - startY) * progress - (continuousProgress - 1) * 50;
         
         g.position.set(collagePos.x, currentY, collagePos.z);
-        g.rotation.set(0, collagePos.rotationY * arcProgress, collagePos.rotation * arcProgress);
+        
+        const rotationProgress = Math.min(1, progress * 1.2);
+        g.rotation.set(0, collagePos.rotationY * rotationProgress, collagePos.rotation * rotationProgress);
 
-        const currentScale = 0.2 + (collagePos.scale - 0.2) * Math.min(1, progress * 1.5);
+        const scaleProgress = progress < 0.9 ? progress / 0.9 : 0.9 + (progress - 0.9) * 0.1;
+        const currentScale = 0.3 + (collagePos.scale - 0.3) * scaleProgress;
         g.scale.setScalar(currentScale);
 
         g.visible = true;
-        m.material.uniforms.opacity.value = progress;
+        m.material.uniforms.opacity.value = Math.min(1, progress * 1.5);
         m.material.uniforms.time.value = t;
 
-        // Start disintegration after appearance + view time + random delay
-        const totalDelayBeforeDisintegration = appearanceDuration + disRandomDelays[i];
-        if (disStartTimes.current[i] === 0 && localT > totalDelayBeforeDisintegration) {
+        if (disStartTimes.current[i] === 0 && localT > appearanceDuration + disRandomDelays[i]) {
           disStartTimes.current[i] = t;
+          activateParticlesForImage(i, g.position);
         }
         m.material.uniforms.startTime.value = disStartTimes.current[i];
-        m.material.uniforms.groupPos.value.copy(g.position);
       });
     }
 
+    // ANIMACIÓN DE PARTÍCULAS LUMINOSAS
+    particleRefs.current.forEach((particle, i) => {
+      if (!particle.active || !particle.meshRef.current) return;
+
+      const particleTime = t - particle.startTime;
+      const particleProgress = Math.min(1, particleTime / 2.0);
+
+      if (particleProgress >= 1) {
+        particle.active = false;
+        particle.meshRef.current.visible = false;
+        return;
+      }
+
+      if (particleTargetBasket.current) {
+        const targetPos = particleTargetBasket.current.position.clone();
+        particle.position.lerpVectors(particle.position, targetPos, particleProgress * 0.1);
+        
+        particle.meshRef.current.position.copy(particle.position);
+        
+        const intensity = 1.0 - particleProgress;
+        particle.meshRef.current.scale.setScalar(0.08 * intensity);
+        particle.meshRef.current.material.emissiveIntensity = intensity * 2;
+        particle.meshRef.current.material.opacity = intensity;
+      }
+    });
+
     if (phase === 3) {
-      // Ocultar fotos
       photoGroupRefs.current.forEach((ref) => {
         if (ref.current) ref.current.visible = false;
       });
     }
   });
 
-  const fragGeo = useMemo(() => new THREE.PlaneGeometry(fragRes.width / fragRes.resW, fragRes.height / fragRes.resH), []);
+  // Función para activar partículas para una imagen específica
+  const activateParticlesForImage = (imageIndex, imagePosition, imageMesh) => {
+    const particlesPerImage = 200;
+    const startIndex = imageIndex * particlesPerImage;
+    const now = performance.now() / 1000;
+
+    const width = imageMesh?.scale?.x * 50 || 18;
+    const height = imageMesh?.scale?.y * 50 || 12;
+
+    for (let i = 0; i < particlesPerImage; i++) {
+      const particleIndex = startIndex + i;
+      if (particleIndex >= particleRefs.current.length) break;
+
+      const particle = particleRefs.current[particleIndex];
+      particle.active = true;
+      particle.startTime = now;
+
+      const offsetX = (Math.random() - 0.5) * width;
+      const offsetY = (Math.random() - 0.5) * height;
+      const offsetZ = (Math.random() - 0.5) * 2;
+
+      particle.position.set(
+        imagePosition.x + offsetX,
+        imagePosition.y + offsetY,
+        imagePosition.z + offsetZ
+      );
+
+      particle.velocity.set(
+        (Math.random() - 0.5) * 4,
+        (Math.random() - 0.5) * 6,
+        (Math.random() - 0.5) * 4
+      );
+
+      const hue = 0.1 + Math.random() * 0.15;
+      const lightness = 0.8 + Math.random() * 0.2;
+      particle.originalColor.setHSL(hue, 0.6, lightness);
+
+      const emissive = particle.originalColor.clone().multiplyScalar(1.5);
+
+      if (particle.meshRef.current) {
+        const mesh = particle.meshRef.current;
+        mesh.position.copy(particle.position);
+        mesh.material.color.copy(particle.originalColor);
+        mesh.material.emissive.copy(emissive);
+        mesh.material.emissiveIntensity = 1.2;
+        mesh.material.transparent = true;
+        mesh.material.opacity = 1.0;
+        mesh.visible = true;
+      }
+    }
+  };
 
   return (
     <group>
@@ -386,9 +457,9 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
 
       <perspectiveCamera ref={cameraRef} makeDefault position={[0, 0, 80]} />
 
-      {/* Sparkles */}
+      {/* ✨ Sparkles */}
       {Array.from({ length: 120 }).map((_, i) => (
-        <mesh key={`sparkle-${i}`} ref={sparkleRefs.current[i]} position={[
+        <mesh key={`sparkle-${i}`} ref={el => sparkleRefs.current[i] = el} position={[
           (Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000, (Math.random() - 0.5) * 1000
         ]}>
           <sphereGeometry args={[0.25, 6, 6]} />
@@ -396,70 +467,81 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         </mesh>
       ))}
 
-      {/* FOTOS COMPLETAS */}
+      {/* ✨ Partículas Luminosas para Desintegración */}
+      {particleRefs.current.map((_, i) => (
+        <mesh
+          key={`particle-${i}`}
+          ref={el => particleRefs.current[i].meshRef = el}
+          visible={false}
+        >
+          <sphereGeometry args={[0.3, 8, 8]} />
+          <meshBasicMaterial
+            transparent
+            opacity={1}
+            color="#ffffff"
+            emissive="#ffffff"
+            emissiveIntensity={1}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
+
+      {/* 📸 FOTOS COMPLETAS */}
       {textures.map((tex, i) => {
+        const photoGeometry = useMemo(() => {
+          const geom = new THREE.PlaneGeometry(18, 12, 80, 53);
+          return geom;
+        }, []);
+
         const material = useMemo(() => new THREE.ShaderMaterial({
           uniforms: {
             map: { value: tex },
             opacity: { value: 0 },
             time: { value: 0 },
             startTime: { value: 0 },
-            groupPos: { value: new THREE.Vector3() },
+            delay: { value: 1.5 },
           },
           vertexShader: `
-            attribute vec3 localPos;
-            attribute vec2 uvOffset;
-            attribute vec3 randomDir;
-            attribute float fragDelay;
-            attribute vec3 targetPos;
-
-            varying vec2 vUv;
-            varying float vBrightness;
-            varying float vAlpha;
-
             uniform float time;
             uniform float startTime;
-            uniform vec3 groupPos;
-
+            uniform float delay;
+            varying vec2 vUv;
+            varying float vDissolve;
+            
             void main() {
-              vUv = uv * vec2(1.0 / ${fragRes.resW}.0, 1.0 / ${fragRes.resH}.0) + uvOffset;
-
-              float localTime = time - startTime - fragDelay;
-
-              float amount = clamp(localTime / 1.5, 0.0, 1.0);
-              float flyAmount = clamp((localTime - 1.5) / 3.0, 0.0, 1.0);
-
-              vec3 pos = position + localPos;
-              vec3 disOffset = normalize(randomDir) * amount * 5.0;
-              vec3 curPos = pos + disOffset;
-              curPos = mix(curPos, targetPos - groupPos, flyAmount);
-
-              float scale = 1.0 - amount * 0.3 - flyAmount * 0.6;
-              vec3 scaledPos = curPos * scale;
-
-              gl_Position = projectionMatrix * modelViewMatrix * vec4(scaledPos, 1.0);
-
-              vBrightness = 1.0 + amount * 3.0 + flyAmount * 1.0;
-              vAlpha = 1.0 - amount * 0.2 - flyAmount * 0.8;
+              vUv = uv;
+              vec3 pos = position;
+              
+              float effectiveTime = time - startTime - delay;
+              
+              if (effectiveTime > 0.0) {
+                float dissolveThreshold = effectiveTime * 0.8;
+                float vertexOrder = (position.y + 6.0) / 12.0 + (position.x + 9.0) / 18.0 * 0.3;
+                vDissolve = smoothstep(vertexOrder - 0.1, vertexOrder + 0.1, dissolveThreshold);
+                
+                if (startTime > 0.0 && vDissolve > 0.01) {
+                  pos *= (1.0 - vDissolve);
+                }
+              } else {
+                vDissolve = 0.0;
+              }
+              
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
             }
           `,
           fragmentShader: `
             uniform sampler2D map;
             uniform float opacity;
             varying vec2 vUv;
-            varying float vBrightness;
-            varying float vAlpha;
-
+            varying float vDissolve;
             void main() {
               vec4 texColor = texture2D(map, vUv);
-              gl_FragColor = texColor * vBrightness * vAlpha * opacity;
+              float alpha = texColor.a * opacity * (1.0 - vDissolve);
+              gl_FragColor = vec4(texColor.rgb, alpha);
             }
           `,
           transparent: true,
-          blending: THREE.AdditiveBlending,
           side: THREE.DoubleSide,
-          toneMapped: false,
-          depthWrite: false,
         }), [tex]);
 
         return (
@@ -467,17 +549,19 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
             key={`photo-group-${i}`}
             ref={photoGroupRefs.current[i]}
             visible={false}
-            position={[0, 90, 0]}
+            position={[0, 120, 0]}
           >
-            <instancedMesh 
-              ref={imageRefs.current[i]}
-              args={[fragGeo, material, numFrags]}
-            />
+            <mesh 
+              ref={imageRefs.current[i]} 
+              geometry={photoGeometry}
+            >
+              <primitive object={material} attach="material" />
+            </mesh>
           </group>
         );
       })}
 
-      {/* CANASTAS */}
+      {/* 🛒 CANASTAS */}
       {Array.from({ length: numBaskets }).map((_, i) => {
         const pos = initialBasketPositions[i];
         return (

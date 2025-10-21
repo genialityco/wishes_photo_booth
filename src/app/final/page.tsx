@@ -188,7 +188,7 @@ export default function WishesAnimationPage() {
 
   return (
     <div>
-        <AnimationComponent photoUrls={wishes.map(wish => wish.photoUrl)} message="Geniality" modelPath="/models/Air_Balloon.fbx"></AnimationComponent>
+        <AnimationComponent photoUrls={wishes.map(wish => wish.photoUrl)} message="fenalco geniality" modelPath="/models/Air_Balloon.fbx"></AnimationComponent>
     </div>
   )
 }
