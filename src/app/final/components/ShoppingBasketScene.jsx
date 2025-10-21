@@ -138,8 +138,8 @@ useEffect(() => {
   const thickness = 8;
   const size = 20;
   const maxLineWidth = 200;
-  const lineHeight = 20;
-  const verticalOffset = -40; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
+  const lineHeight = 24;
+  const verticalOffset = -20; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
 
   const words = message.split(' ');
   const lines = [];
