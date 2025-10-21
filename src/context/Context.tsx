@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
@@ -30,7 +31,7 @@ interface WishStyleContextType {
   setWishStyle: (style: TextStyle | ((prev: TextStyle) => TextStyle)) => void;
   updateWishStyle: (partialStyle: Partial<TextStyle>) => void;
   resetWishStyle: () => void;
-  getReactCSSProperties: () => React.CSSProperties;
+
 }
 
 const WishStyleContext = createContext<WishStyleContextType | undefined>(undefined);
@@ -47,15 +48,7 @@ export const WishStyleProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Convertir TextStyle a React.CSSProperties para usar en componentes
-  const getReactCSSProperties = (): React.CSSProperties => {
-    return {
-      fontSize: wishStyle.fontSize,
-      fontWeight: wishStyle.fontWeight as any,
-      color: wishStyle.color,
-      fontFamily: wishStyle.fontFamily,
-      fontStyle: wishStyle.italic ? 'italic' : 'normal',
-    };
-  };
+
 
   return (
     <WishStyleContext.Provider
@@ -64,7 +57,7 @@ export const WishStyleProvider = ({ children }: { children: ReactNode }) => {
         setWishStyle,
         updateWishStyle,
         resetWishStyle,
-        getReactCSSProperties,
+  
       }}
     >
       {children}

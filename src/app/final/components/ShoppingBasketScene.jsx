@@ -130,14 +130,16 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   }, []);
 
 // PUNTOS TEXTO (con división automática en líneas)
+// PUNTOS TEXTO (con división automática en líneas)
 useEffect(() => {
   if (!font) return;
   console.log(`🛒 Generando texto multilínea para "${message}"...`);
 
-  const thickness = 5;
+  const thickness = 8;
   const size = 20;
   const maxLineWidth = 200;
-  const lineHeight = 18;
+  const lineHeight = 20;
+  const verticalOffset = -40; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
 
   const words = message.split(' ');
   const lines = [];
@@ -170,7 +172,7 @@ useEffect(() => {
 
     const centerX = (geom.boundingBox.max.x + geom.boundingBox.min.x) / 2;
     const totalHeight = lines.length * lineHeight;
-    const yOffset = (totalHeight / 2) - (i * lineHeight);
+    const yOffset = (totalHeight / 2) - (i * lineHeight) + verticalOffset;
 
     const pos = geom.attributes.position;
     const idx = geom.index;

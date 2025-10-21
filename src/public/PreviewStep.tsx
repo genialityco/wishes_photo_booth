@@ -19,7 +19,7 @@ export default function PreviewStep({
   onRetake: () => void;
   onConfirm?: () => void; // confirmará y pasará al loader
   wish?: { name: string; wish: string }; // mensaje de deseo
-  wishStyle?: any
+  wishStyle?: unknown
 }) {
   const style = { ...defaultTextStyle};
   return (
