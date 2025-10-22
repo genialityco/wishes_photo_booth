@@ -313,7 +313,7 @@ export default function PhotoBoothWizard({
             <div className="pt-8 flex flex-col gap-8">
              <p className="text-xl text-white max-w-md mx-auto bg-black/50  p-2 rounded-md">
             
-              Por hacer parte de GÓNDOLA 2025
+              Tu deseo se esta juntando con muchos otros espera
             </p>
             <p className="text-xl text-white max-w-md mx-auto bg-black/50  p-2 rounded-md">
 

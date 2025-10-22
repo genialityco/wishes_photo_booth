@@ -375,7 +375,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         const appearanceDuration = 3.0;
         const progress = Math.min(1, localT / appearanceDuration);
 
-        const startY = 0;
+        const startY = 500;
         const endY = collagePos.y;
         
         const continuousProgress = progress + (localT - appearanceDuration) * 0.1;

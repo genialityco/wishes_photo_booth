@@ -71,7 +71,7 @@ function createGoldenBasketBase(dim: BasketDimensions, color: number): THREE.Gro
     clearcoatRoughness: 0.5,
     reflectivity: 1.0,
     emissive: new THREE.Color(color).multiplyScalar(0.15), // más brillo
-    emissiveIntensity: 0.25,
+    emissiveIntensity: 0.35,
   });
   const outerMesh = new THREE.Mesh(outerGeom, outerMat);
   group.add(outerMesh);
