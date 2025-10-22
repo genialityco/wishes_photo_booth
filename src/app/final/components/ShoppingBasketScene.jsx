@@ -29,6 +29,14 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   const imageRefs = useRef(textures.map(() => React.createRef()));
   const photoGroupRefs = useRef(textures.map(() => React.createRef()));
   const disStartTimes = useRef(Array.from({ length: textures.length }, () => 0));
+  
+  // 🛒 CANASTOS DE TRANSFORMACIÓN (uno por cada foto)
+  const transformBasketRefs = useRef(textures.map(() => React.createRef()));
+  const transformBasketStates = useRef(textures.map(() => ({
+    visible: false,
+    startTime: 0,
+    initialY: 0
+  })));
 
   // Nuevos refs para partículas luminosas
   const particleRefs = useRef([]);
@@ -138,7 +146,6 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   useEffect(() => {
     if (!font) return;
     console.log(`🛒 Generando texto multilínea para "${message}"...`);
-
     const thickness = 8;
     const size = 16;
     const maxLineWidth = 160;
@@ -375,11 +382,11 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         const appearanceDuration = 3.0;
         const progress = Math.min(1, localT / appearanceDuration);
 
-        const startY = 500;
+        const startY = 50;
         const endY = collagePos.y;
         
         const continuousProgress = progress + (localT - appearanceDuration) * 0.1;
-        const currentY = startY + (endY - startY) * progress - (continuousProgress - 1) * 50;
+        const currentY = 120 + (endY - startY) * progress - (continuousProgress - 1) * 50;
         
         g.position.set(collagePos.x, currentY, collagePos.z);
         
@@ -397,6 +404,11 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         if (disStartTimes.current[i] === 0 && localT > appearanceDuration + disRandomDelays[i]) {
           disStartTimes.current[i] = t;
           activateParticlesForImage(i, g.position);
+          
+          // 🛒 Activar canasto de transformación
+          transformBasketStates.current[i].visible = true;
+          transformBasketStates.current[i].startTime = t;
+          transformBasketStates.current[i].initialY = g.position.y - 20; // Aparece debajo de la foto
         }
         m.material.uniforms.startTime.value = disStartTimes.current[i];
       });
@@ -426,6 +438,61 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         particle.meshRef.current.material.emissiveIntensity = intensity * 2;
         particle.meshRef.current.material.opacity = intensity;
       }
+    });
+
+    // 🛒 ANIMACIÓN DE CANASTOS DE TRANSFORMACIÓN
+    transformBasketRefs.current.forEach((basketRef, i) => {
+      if (!basketRef.current) return;
+      
+      const state = transformBasketStates.current[i];
+      
+      // Ocultar canastos en fase 3
+      if (phase === 3) {
+        basketRef.current.visible = false;
+        state.visible = false;
+        return;
+      }
+
+      if (!state.visible) {
+        basketRef.current.visible = false;
+        return;
+      }
+
+      const transformTime = t - state.startTime;
+      const transformDuration = 2.5;
+      const progress = Math.min(1, transformTime / transformDuration);
+
+      basketRef.current.visible = true;
+
+      // Animación de aparición: escala y posición
+      const scaleProgress = Math.min(1, progress * 1.5);
+      const scale = 0.3 + scaleProgress * 0.7; // De 0.3 a 1.0
+      basketRef.current.scale.setScalar(scale);
+
+      // Movimiento hacia arriba gradual
+      const photoPos = photoGroupRefs.current[i]?.current?.position;
+      if (photoPos) {
+        const startY = state.initialY;
+        const endY = photoPos.y - 3; // Posición final: justo debajo de donde estaba la foto
+        const currentY = startY + (endY - startY) * progress;
+        
+        basketRef.current.position.set(
+          photoPos.x,
+          currentY,
+          photoPos.z + 2
+        );
+      }
+
+      // Rotación suave
+      basketRef.current.rotation.y = transformTime * 1.5;
+
+      // Intensidad luminosa pulsante
+      basketRef.current.traverse((child) => {
+        if (child.isMesh) {
+          const pulseIntensity = 0.3 + Math.abs(Math.sin(t * 4 + i)) * 0.7;
+          child.material.emissiveIntensity = pulseIntensity * (1 + progress);
+        }
+      });
     });
 
     if (phase === 3) {
@@ -611,6 +678,17 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
           </group>
         );
       })}
+
+      {/* 🛒 CANASTOS DE TRANSFORMACIÓN (uno por cada foto) */}
+      {textures.map((_, i) => (
+        <group
+          key={`transform-basket-${i}`}
+          ref={transformBasketRefs.current[i]}
+          visible={false}
+        >
+          <primitive object={basketGeometry.clone()} />
+        </group>
+      ))}
     </group>
   );
 }
