@@ -21,7 +21,7 @@ export default function WishStep({
   };
 
   return (
-    <div className="h-[100vh] w-[100vw] flex flex-col items-center justify-between gap-4 px-4"
+    <div className="h-[100vh] w-[100vw] flex flex-col items-center justify-between gap-4 px-4 overflow-hidden"
       style={{ 
         backgroundImage: "url(/CORTES/INTERNA/INTERNA-DE-LOS-DESEOS.jpg)", 
         backgroundSize: "cover", 

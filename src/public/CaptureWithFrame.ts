@@ -113,7 +113,7 @@ export const addTextToImage = (
         }
 
         // Escalar el fontSize según el tamaño del canvas
-        fontSize = Math.max(fontSize * (targetW / 1000), 80); // Aumenté el tamaño mínimo del texto a 80 para mayor visibilidad
+        fontSize = Math.max(fontSize * (targetW / 1000), 50); // Aumenté el tamaño mínimo del texto a 80 para mayor visibilidad
 
         const lineHeight = fontSize * 1; // Ajusté el lineHeight para mayor separación entre líneas
 

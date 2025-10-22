@@ -3,20 +3,23 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 
-import { createShoppingBasketGeometry } from './BasquetShape.ts';
+import { createShoppingBasketGeometry } from './BasketShape';
 
 export default function ShoppingBasketScene({ photoUrls, message }) {
   // ✅ LOADER DENTRO DEL CANVAS
-  const font = useLoader(FontLoader, '/fonts/helvetiker_regular.typeface.json');
-  const textures = useLoader(THREE.TextureLoader, photoUrls);
-
+  const font = useLoader(FontLoader, '/fonts/Roboto_Regular.json');
+  const repeatedPhotoUrls = Array.from({ length: 1 }, () => photoUrls).flat();
+  const textures = useLoader(THREE.TextureLoader, repeatedPhotoUrls);
   const [phase, setPhase] = useState(0);
-  const numBasketsPhase1_2 = Math.max(400, photoUrls.length * 3 * 80);
+  const numBasketsPhase1_2 = 100;
   const numBasketsPhase3 = 3000;
   const numBaskets = numBasketsPhase3;
 
+  // 🌊 CONFIGURACIÓN DE CASCADAS
+  const numCascadeLines = 6; // 🔥 AJUSTA ESTE NÚMERO: cantidad de líneas de cascada paralelas
+
   // Refs
-  const cameraRef = useRef();
+  const cameraRef = useRef(null);
   const basketRefs = useRef(Array.from({ length: numBaskets }, () => React.createRef()));
   const targetPositions = useRef([]);
   const phaseStartTimes = useRef({});
@@ -51,29 +54,31 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
     }), [numBaskets]
   );
 
-  // 📸 POSICIONES COLLAGE FOTOS - MÁS SEPARADAS
- const photoCollagePositions = useMemo(() => {
-  const positions = [];
-  const cols = Math.ceil(Math.sqrt(textures.length));
-  const rows = Math.ceil(textures.length / cols);
-  const spacingX = 18; // Reducido para más compacto
-  const spacingY = 14; // Reducido para más compacto
-  
-  for (let i = 0; i < textures.length; i++) {
-    const row = Math.floor(i / cols);
-    const col = i % cols;
+  // 📸 POSICIONES COLLAGE FOTOS - SISTEMA DE CASCADAS
+  const photoCollagePositions = useMemo(() => {
+    const positions = [];
+    const photosPerLine = Math.ceil(textures.length / numCascadeLines);
+    const spacingX = 35; // Espaciado horizontal entre líneas de cascada
+    const spacingY = 20; // Espaciado vertical entre fotos en la misma cascada
+    const totalWidth = (numCascadeLines - 1) * spacingX;
     
-    positions.push({
-      x: (col - (cols - 1) / 2) * spacingX,
-      y: ((rows - 1) / 2 - row) * spacingY,
-      z: -5 + Math.random() * 5, // 🔥 REDUCIDO: estaba en 25-40, ahora 15-20
-      rotation: (Math.random() - 0.5) * 0.15, // Menor rotación
-      rotationY: (Math.random() - 0.5) * 0.3, // Menor rotación Y
-      scale: 1.0 + Math.random() * 0.3 // Escala un poco más grande
-    });
-  }
-  return positions;
-}, [textures.length]);
+    for (let i = 0; i < textures.length; i++) {
+      const lineIndex = i % numCascadeLines; // En qué línea de cascada está
+      const positionInLine = Math.floor(i / numCascadeLines); // Posición dentro de su cascada
+      
+      positions.push({
+        x: (lineIndex - (numCascadeLines - 1) / 2) * spacingX, // Distribuir líneas horizontalmente
+        y: -positionInLine * spacingY, // Cada foto más abajo en su cascada
+        z: -5 + Math.random() * 2,
+        rotation: (Math.random() - 0.5) * 0.15,
+        rotationY: (Math.random() - 0.5) * 0.3,
+        scale: 1.0 + Math.random() * 0.3,
+        cascadeIndex: lineIndex, // Índice de la línea de cascada
+        cascadePosition: positionInLine // Posición en la cascada
+      });
+    }
+    return positions;
+  }, [textures.length, numCascadeLines]);
 
   // RANDOM DISINTEGRATION DELAYS
   const disRandomDelays = useMemo(() => 
@@ -129,112 +134,112 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
     return () => timers.forEach(clearTimeout);
   }, []);
 
-// PUNTOS TEXTO (con división automática en líneas)
-// PUNTOS TEXTO (con división automática en líneas)
-useEffect(() => {
-  if (!font) return;
-  console.log(`🛒 Generando texto multilínea para "${message}"...`);
+  // PUNTOS TEXTO (con división automática en líneas)
+  useEffect(() => {
+    if (!font) return;
+    console.log(`🛒 Generando texto multilínea para "${message}"...`);
 
-  const thickness = 8;
-  const size = 20;
-  const maxLineWidth = 180;
-  const lineHeight = 24;
-  const verticalOffset = -20; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
- const letterSpacing = 3;
-  
-   const words = message.split(' ');
-  const lines = [];
-  let currentLine = '';
-
-  words.forEach(word => {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const testShapes = font.generateShapes(testLine, size);
-    const testGeom = new THREE.ShapeGeometry(testShapes);
-    testGeom.computeBoundingBox();
-    const width = testGeom.boundingBox.max.x - testGeom.boundingBox.min.x;
-    testGeom.dispose();
-
-    if (width > maxLineWidth && currentLine !== '') {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  });
-  if (currentLine) lines.push(currentLine);
-
-  const allTriangles = [];
-  const allAreas = [];
-
-  lines.forEach((line, i) => {
-    // 🔥 GENERAR CADA LETRA POR SEPARADO PARA CONTROLAR EL ESPACIADO
-    let totalLineWidth = 0;
-    const letterGeometries = [];
+    const thickness = 8;
+    const size = 16;
+    const maxLineWidth = 160;
+    const lineHeight = 24;
+    const verticalOffset = -20; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
+    const letterSpacing = 3;
     
-    for (let charIndex = 0; charIndex < line.length; charIndex++) {
-      const char = line[charIndex];
-      if (char === ' ') {
-        totalLineWidth += size * 0.5 + letterSpacing; // Espacio para espacios en blanco
-        continue;
-      }
-      
-      const shapes = font.generateShapes(char, size);
-      const geom = new THREE.ShapeGeometry(shapes);
-      geom.computeBoundingBox();
-      
-      const charWidth = geom.boundingBox.max.x - geom.boundingBox.min.x;
-      letterGeometries.push({
-        geom,
-        xOffset: totalLineWidth,
-        width: charWidth
-      });
-      
-      totalLineWidth += charWidth + letterSpacing;
-    }
+    const words = message.split(' ');
+    const lines = [];
+    let currentLine = '';
 
-    const centerX = totalLineWidth / 2;
-    const totalHeight = lines.length * lineHeight;
-    const yOffset = (totalHeight / 2) - (i * lineHeight) + verticalOffset;
+    words.forEach(word => {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testShapes = font.generateShapes(testLine, size);
+      const testGeom = new THREE.ShapeGeometry(testShapes);
+      testGeom.computeBoundingBox();
+      const width = testGeom.boundingBox.max.x - testGeom.boundingBox.min.x;
+      testGeom.dispose();
 
-    // 🔥 PROCESAR CADA LETRA CON SU OFFSET
-    letterGeometries.forEach(({ geom, xOffset }) => {
-      const pos = geom.attributes.position;
-      const idx = geom.index;
-      
-      for (let j = 0; j < idx.count; j += 3) {
-        const a = idx.getX(j), b = idx.getX(j + 1), c = idx.getX(j + 2);
-        const pa = new THREE.Vector3(pos.getX(a) + xOffset - centerX, pos.getY(a) + yOffset, 0);
-        const pb = new THREE.Vector3(pos.getX(b) + xOffset - centerX, pos.getY(b) + yOffset, 0);
-        const pc = new THREE.Vector3(pos.getX(c) + xOffset - centerX, pos.getY(c) + yOffset, 0);
-        const area = new THREE.Vector3().crossVectors(pb.clone().sub(pa), pc.clone().sub(pa)).length() / 2;
-        allAreas.push(area);
-        allTriangles.push({ pa, pb, pc, area });
+      if (width > maxLineWidth && currentLine !== '') {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
       }
-      
-      geom.dispose();
     });
-  });
+    if (currentLine) lines.push(currentLine);
 
-  const totalArea = allAreas.reduce((sum, a) => sum + a, 0);
+    const allTriangles = [];
+    const allAreas = [];
 
-  const getRandomPointInShape = () => {
-    let r = Math.random() * totalArea;
-    let triIndex = 0;
-    while (r > allAreas[triIndex]) { r -= allAreas[triIndex]; triIndex++; }
-    const tri = allTriangles[triIndex];
-    let u = Math.random(), v = Math.random();
-    if (u + v > 1) { u = 1 - u; v = 1 - v; }
-    return tri.pa.clone()
-      .add(tri.pb.clone().sub(tri.pa).multiplyScalar(u))
-      .add(tri.pc.clone().sub(tri.pa).multiplyScalar(v));
-  };
+    lines.forEach((line, i) => {
+      // 🔥 GENERAR CADA LETRA POR SEPARADO PARA CONTROLAR EL ESPACIADO
+      let totalLineWidth = 0;
+      const letterGeometries = [];
+      
+      for (let charIndex = 0; charIndex < line.length; charIndex++) {
+        const char = line[charIndex];
+        if (char === ' ') {
+          totalLineWidth += size * 0.5 + letterSpacing; // Espacio para espacios en blanco
+          continue;
+        }
+        
+        const shapes = font.generateShapes(char, size);
+        const geom = new THREE.ShapeGeometry(shapes);
+        geom.computeBoundingBox();
+        
+        const charWidth = geom.boundingBox.max.x - geom.boundingBox.min.x;
+        letterGeometries.push({
+          geom,
+          xOffset: totalLineWidth,
+          width: charWidth
+        });
+        
+        totalLineWidth += charWidth + letterSpacing;
+      }
 
-  targetPositions.current = Array.from({ length: numBaskets }, () => {
-    const p2d = getRandomPointInShape();
-    const z = (Math.random() - 0.5) * thickness;
-    return new THREE.Vector3(p2d.x, p2d.y, z);
-  });
-}, [font, message, numBaskets]);
+      const centerX = totalLineWidth / 2;
+      const totalHeight = lines.length * lineHeight;
+      const yOffset = (totalHeight / 2) - (i * lineHeight) + verticalOffset;
+
+      // 🔥 PROCESAR CADA LETRA CON SU OFFSET
+      letterGeometries.forEach(({ geom, xOffset }) => {
+        const pos = geom.attributes.position;
+        const idx = geom.index;
+        
+        for (let j = 0; j < idx.count; j += 3) {
+          const a = idx.getX(j), b = idx.getX(j + 1), c = idx.getX(j + 2);
+          const pa = new THREE.Vector3(pos.getX(a) + xOffset - centerX, pos.getY(a) + yOffset, 0);
+          const pb = new THREE.Vector3(pos.getX(b) + xOffset - centerX, pos.getY(b) + yOffset, 0);
+          const pc = new THREE.Vector3(pos.getX(c) + xOffset - centerX, pos.getY(c) + yOffset, 0);
+          const area = new THREE.Vector3().crossVectors(pb.clone().sub(pa), pc.clone().sub(pa)).length() / 2;
+          allAreas.push(area);
+          allTriangles.push({ pa, pb, pc, area });
+        }
+        
+        geom.dispose();
+      });
+    });
+
+    const totalArea = allAreas.reduce((sum, a) => sum + a, 0);
+
+    const getRandomPointInShape = () => {
+      let r = Math.random() * totalArea;
+      let triIndex = 0;
+      while (r > allAreas[triIndex]) { r -= allAreas[triIndex]; triIndex++; }
+      const tri = allTriangles[triIndex];
+      let u = Math.random(), v = Math.random();
+      if (u + v > 1) { u = 1 - u; v = 1 - v; }
+      return tri.pa.clone()
+        .add(tri.pb.clone().sub(tri.pa).multiplyScalar(u))
+        .add(tri.pc.clone().sub(tri.pa).multiplyScalar(v));
+    };
+
+    targetPositions.current = Array.from({ length: numBaskets }, () => {
+      const p2d = getRandomPointInShape();
+      const z = (Math.random() - 0.5) * thickness;
+      return new THREE.Vector3(p2d.x, p2d.y, z);
+    });
+  }, [font, message, numBaskets]);
+
   // 🎬 ANIMACIÓN
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
@@ -349,7 +354,7 @@ useEffect(() => {
       }
     });
 
-    // 📸 FOTOS ANIMADAS (FASE 2) - CON EFECTO DE CAÍDA DESDE ARRIBA
+    // 📸 FOTOS ANIMADAS (FASE 2) - CON EFECTO DE CASCADAS MÚLTIPLES
     if (phase === 2) {
       const phase2Time = t - phaseStartTimes.current[2];
 
@@ -358,15 +363,19 @@ useEffect(() => {
         const m = imageRefs.current[i]?.current;
         if (!g || !m) return;
 
-        const delay = i * 0.8;
-        const localT = Math.max(0, phase2Time - delay);
-        const appearanceDuration = 3.0;
-        const progress = Math.min(1, localT / appearanceDuration);
-
         const collagePos = photoCollagePositions[i];
         if (!collagePos) return;
 
-        const startY = 120;
+        // 🌊 Delay basado en la posición en su cascada (no en el índice total)
+        const cascadeDelay = collagePos.cascadeIndex * 0.3; // Delay entre líneas de cascada
+        const positionDelay = collagePos.cascadePosition * 0.6; // Delay dentro de la cascada
+        const totalDelay = cascadeDelay + positionDelay;
+        
+        const localT = Math.max(0, phase2Time - totalDelay);
+        const appearanceDuration = 3.0;
+        const progress = Math.min(1, localT / appearanceDuration);
+
+        const startY = 0;
         const endY = collagePos.y;
         
         const continuousProgress = progress + (localT - appearanceDuration) * 0.1;

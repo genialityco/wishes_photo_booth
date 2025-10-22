@@ -56,7 +56,7 @@ export default function ButtonPrimary({
                 className="absolute inset-0 w-full h-full object-fill "
                 draggable={false}
             />
-            <span className={["relative z-10", "font-azo text-black text-xl font-bold", textClassName].join(" ")}>
+            <span className={["relative z-10", "font-azo text-black text-[17px] font-bold", textClassName].join(" ")}>
                 {label}
             </span>
         </button>

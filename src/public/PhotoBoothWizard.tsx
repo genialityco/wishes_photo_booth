@@ -305,23 +305,20 @@ export default function PhotoBoothWizard({
           <div className="text-center space-y-6 animate-fade-in">
             <div className="text-6xl mb-4">✨</div>
             <h2 className="text-4xl bg-black/50 p-2 rounded-md font-bold">¡Deseo enviado!</h2>
-            {/* <div className="bg-black/50">
-            <p className="text-xl text-white max-w-md mx-auto  p-2 rounded-md">
-              Tu deseo ha sido enviado al universo
-            </p>
-            {wish.name && (
-              <p className="text-lg text-gray-50  p-2 rounded-md">
-                Gracias, <strong>{wish.name}</strong>
-              </p>
-            )}
+            <div className="bg-black/50">
+          
 
-            </div> */}
+            </div>
           </div>
-            <div className="pt-8">
+            <div className="pt-8 flex flex-col gap-8">
+            <p className="text-xl text-white max-w-md mx-auto bg-black/50  p-2 rounded-md">
+              Por hacer parte de GÓNDOLA 2025
+            </p>
               <img
                 src="/CORTES/CIERRE/GRACIAS.png"
                 alt="Gracias"
-                className="w-90 h-20 mx-auto"
+                className="
+              h-32 mx-auto"
               />
             </div>
         </div>

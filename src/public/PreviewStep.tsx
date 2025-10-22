@@ -1,31 +1,45 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import ButtonPrimary from "./components/button";
 import { defaultTextStyle } from "@/context/Context";
-
 
 export default function PreviewStep({
   framedShot,
   boxSize = "min(88vw, 60svh)",
   onRetake,
   onConfirm,
-  wish = { name: "", wish: "" }, // Cambié el tipo de wish a un objeto con name y wish
-
+  wish = { name: "", wish: "" },
 }: {
-  framedShot: string; // mostramos la foto con marco
+  framedShot: string;
   boxSize?: string;
   onRetake: () => void;
-  onConfirm?: () => void; // confirmará y pasará al loader
-  wish?: { name: string; wish: string }; // mensaje de deseo
-  wishStyle?: unknown
+  onConfirm?: () => void;
+  wish?: { name: string; wish: string };
+  wishStyle?: unknown;
 }) {
-  const style = { ...defaultTextStyle};
+  const style = { ...defaultTextStyle };
+
+  // 🔹 Mover scroll al inicio cada vez que se entra a esta pantalla
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" }); // sin animación
+  }, []);
+
   return (
-    <div className="h-[100svh] w-[100vw] flex flex-col items-center justify-center gap-6">
+    <div className="h-[100svh] w-[100vw] flex flex-col items-center justify-center gap-6 overflow-hidden relative">
+      {/* LOGO */}
+      <div className="absolute top-4 z-50">
+        <img
+          src="/CORTES/INTERNA/LOGO-INTERNA.png"
+          alt="Logo Góndola"
+          className="w-40 h-auto object-contain drop-shadow-md"
+        />
+      </div>
+
+      {/* FOTO CON MARCO */}
       <div
-        className="relative overflow-hidden "
+        className="relative overflow-hidden"
         style={{ width: boxSize, height: boxSize }}
       >
         <img
@@ -33,10 +47,9 @@ export default function PreviewStep({
           alt="Preview"
           className="absolute inset-0 w-full h-full object-contain"
         />
-        {/* Mostrar el deseo en la parte inferior del frame */}
-      
       </div>
 
+      {/* BOTONES */}
       <div className="flex gap-3">
         <ButtonPrimary
           onClick={onRetake}
