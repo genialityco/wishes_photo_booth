@@ -178,12 +178,21 @@ export default function CaptureStep({
   return (
     <div className="relative h-screen w-screen flex flex-col items-center justify-center overflow-hidden bg-black/5">
       {/* 🔹 LOGO GÓNDOLA */}
+      <div className="flex gap-5">
       <div className="absolute top-4  z-50">
         <img
           src="/CORTES/HOME/LOGO_GONDOLA.png"
           alt="Logo Góndola"
           className="w-40 h-auto object-contain drop-shadow-md"
         />
+      </div>
+        <div className="absolute top-4  z-50">
+        <img
+          src="/CORTES/HOME/LOGO_GONDOLA.png"
+          alt="Logo Góndola"
+          className="w-40 h-auto object-contain drop-shadow-md"
+        />
+      </div>
       </div>
 
       {/* 🔹 Contenedor principal centrado */}

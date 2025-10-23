@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 
 import { createShoppingBasketGeometry } from './BasketShape';
-
+import { createShoppingCartGeometry } from './ShopingCartShape';
 export default function ShoppingBasketScene({ photoUrls, message }) {
   // ✅ LOADER DENTRO DEL CANVAS
   const font = useLoader(FontLoader, '/fonts/Roboto_Regular.json');
@@ -102,8 +102,8 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   ]);
 
   // 🛒 GEOMETRÍA CANASTA
-  const basketGeometry = useMemo(() => createShoppingBasketGeometry(), []);
-
+  //const basketGeometry = useMemo(() => createShoppingBasketGeometry(), []);
+    const basketGeometry = useMemo(() => createShoppingCartGeometry(), [])
   // Inicializar partículas
   useEffect(() => {
     particleRefs.current = Array.from({ length: 500 }, () => ({
