@@ -390,7 +390,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         const endY = collagePos.y;
         
         const continuousProgress = progress + (localT - appearanceDuration) * 0.1;
-        const currentY = 150 + (endY - startY) * progress - (continuousProgress - 1) * 30;
+        const currentY = 120 + (endY - startY) * progress - (continuousProgress - 1) * 30;
         
         g.position.set(collagePos.x, currentY, collagePos.z);
         
