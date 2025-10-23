@@ -1,41 +1,43 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
+import {
+  collection,
+  query,
+  where,
+  getDocs,
   limit as fqLimit,
-  orderBy 
+  orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
 import { getEventById, Wish } from "@/services/eventService";
 import AnimationComponent from "./components/AnimationComponent";
-
+import QRCode from "react-qr-code";
+import { getDatabase, ref, onValue } from "firebase/database";
 
 export default function WishesAnimationPage() {
   const router = useRouter();
   const params = useParams();
   const [eventId, setEventId] = useState<string>("Dr8vPWpmnq1HtcEOCSEn");
+
   interface Event {
     id: string;
     name: string;
     settings: {
       backgroundColor: string;
-      textFinal: string; // Agregué textFinal para AnimationComponent
+      textFinal: string;
     };
-    // Add other properties as needed to match the structure of eventData
   }
-  
+
   const [event, setEvent] = useState<Event | null>(null);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [startedRemotely, setStartedRemotely] = useState(false);
+  const [origin, setOrigin] = useState<string>("");
 
   // Resolver eventId desde params
   useEffect(() => {
@@ -44,40 +46,63 @@ export default function WishesAnimationPage() {
     }
   }, [params]);
 
+  // Guardar origin en cliente
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
+  }, []);
+
+  // Listener Realtime: events/{eventId}/controls/start
+  useEffect(() => {
+    if (!eventId) return;
+    const realtime = getDatabase();
+    const controlRef = ref(realtime, `events/${eventId}/controls/start`);
+
+    const unsubscribe = onValue(controlRef, (snap) => {
+      const value = snap.val();
+      if (value === true) {
+        setStartedRemotely(true);
+        setIsPlaying(true);
+        setCurrentIndex(0);
+      } else {
+        setIsPlaying(false);
+        setStartedRemotely(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [eventId]);
+
   // Cargar evento y wishes
   useEffect(() => {
     const loadEventAndWishes = async () => {
       if (!eventId) return;
-
       setIsLoading(true);
       setError(null);
 
       try {
-        // 1. Cargar datos del evento
         const eventData = await getEventById(eventId);
-        
         if (!eventData) {
           setError("Evento no encontrado");
           return;
         }
-
         setEvent(eventData);
 
-        // 2. Cargar wishes aprobados con fotos
         const wishesRef = collection(db, "events", eventId, "wishes");
-        const q = query(
+        const qy = query(
           wishesRef,
-          where('approved', '==', true),
-          where('public', '==', true),
-          orderBy('createdAt', 'desc'),
-          fqLimit(300) // Limitar a 100 wishes máximo
+          where("approved", "==", true),
+          where("public", "==", true),
+          orderBy("createdAt", "desc"),
+          fqLimit(300)
         );
 
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(qy);
         const wishesData: Wish[] = snapshot.docs
-          .map(doc => ({
+          .map((doc) => ({
             id: doc.id,
-            eventId: eventId,
+            eventId,
             userName: doc.data().userName || "",
             message: doc.data().message || "",
             photoUrl: doc.data().photoUrl || "",
@@ -88,7 +113,7 @@ export default function WishesAnimationPage() {
             colorTheme: doc.data().colorTheme || "#FFD700",
             public: doc.data().public || true,
           }))
-          .filter(wish => wish.photoUrl); // Solo wishes con foto
+          .filter((wish) => wish.photoUrl);
 
         if (wishesData.length === 0) {
           setError("No hay deseos aprobados para mostrar");
@@ -96,8 +121,6 @@ export default function WishesAnimationPage() {
         }
 
         setWishes(wishesData);
-        console.log(`Loaded ${wishesData.length} approved wishes`);
-
       } catch (err) {
         console.error("Error loading event and wishes:", err);
         setError("Error al cargar los datos");
@@ -121,59 +144,33 @@ export default function WishesAnimationPage() {
         }
         return prev + 1;
       });
-    }, 5000); // Cambiar cada 5 segundos
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [isPlaying, wishes.length]);
 
-  const handleStart = () => {
-    setCurrentIndex(0);
-    setIsPlaying(true);
-  };
-
-  const handlePause = () => {
-    setIsPlaying(false);
-  };
-
-  const handleResume = () => {
-    setIsPlaying(true);
-  };
-
-  const handleRestart = () => {
-    setCurrentIndex(0);
-    setIsPlaying(true);
-  };
-
-  const handleNext = () => {
-    if (currentIndex < wishes.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-    }
-  };
-
-  // Loading state
+  // Loading
   if (isLoading) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center"
         style={{
-          background: event?.settings.backgroundColor || "linear-gradient(to br, #6366f1, #8b5cf6)"
+          background:
+            event?.settings.backgroundColor ||
+            "linear-gradient(to br, #6366f1, #8b5cf6)",
         }}
       >
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto"></div>
-          <p className="text-white text-xl font-semibold">Cargando deseos mágicos...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto" />
+          <p className="text-white text-xl font-semibold">
+            Cargando deseos mágicos...
+          </p>
         </div>
       </div>
     );
   }
 
-  // Error state
+  // Error
   if (error || !event) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-600 to-pink-600">
@@ -193,15 +190,54 @@ export default function WishesAnimationPage() {
     );
   }
 
-  const currentWish = wishes[currentIndex];
-  const progress = wishes.length > 0 ? ((currentIndex + 1) / wishes.length) * 100 : 0;
+  // Pantalla de espera: hasta que start=true en Realtime
+  if (!startedRemotely) {
+    return (
+      <div
+        className="min-h-screen flex flex-col items-center justify-center text-white relative"
+        style={{
+          background:
+            event?.settings.backgroundColor ||
+            "linear-gradient(to br, #4f46e5, #7c3aed)",
+        }}
+      >
+        <h2 className="text-3xl font-bold mb-2 animate-pulse">
+          Esperando la llegada de los deseos...
+        </h2>
+        <p className="opacity-80 mb-6">
+          Estos deseos llegarán pronto.
+        </p>
 
+        {/* QR inferior derecho */}
+        <div className="fixed bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-col items-center z-[999]">
+          <QRCode value={origin || "https://example.com"} size={150} />
+          {origin ? (
+            <span className="text-[10px] font-medium text-gray-700 mt-2">
+              {origin}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  // Animación activa
   return (
     <div>
-        <AnimationComponent 
-          photoUrls={wishes.map(wish => wish.photoUrl)} 
-          message={event?.settings.textFinal || "fenalco geniality"} // Usar textFinal del evento si está disponible
-        />
+      <AnimationComponent
+        photoUrls={wishes.map((wish) => wish.photoUrl)}
+        message={event?.settings.textFinal || "fenalco geniality"}
+      />
+
+      {/* QR inferior derecho (visible también durante la animación, si quieres) */}
+      <div className="fixed bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-col items-center z-[999]">
+        <QRCode value={origin || "https://example.com"} size={150} />
+        {origin ? (
+          <span className="text-[10px] font-medium text-gray-700 mt-2">
+            {origin}
+          </span>
+        ) : null}
+      </div>
     </div>
-  )
+  );
 }

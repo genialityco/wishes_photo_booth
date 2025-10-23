@@ -10,6 +10,7 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID!,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL!,
 };
 
 
@@ -72,4 +73,10 @@ export async function uploadDataUrlAndGetURL(path: string, dataUrl: string) {
   const r = ref(storage, path);
   await uploadString(r, dataUrl, "data_url");
   return getDownloadURL(r);
+}
+
+export async function getDatabaseBrowser() {
+  if (!isBrowser()) return null;
+  const { getDatabase } = await import("firebase/database");
+  return getDatabase(app);
 }
