@@ -1,250 +1,285 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
 import WishStep from "./WishStep";
-import ButtonPrimary from "./components/button";
-import { addTextToImage } from "./CaptureWithFrame";
+// import ButtonPrimary from "./components/button";
 import ParticleAnimation from "./components/ParticleAnimation";
+import { addTextToImage } from "./CaptureWithFrame";
 import { createWish } from "@/services/eventService";
+import ReviewStep from "./ReviewStep";
+import SuccessStepTextOnly from "./SuccessStep";
+
+// ---------------------------------------------
+// Types
+// ---------------------------------------------
+
+type Step = "capture" | "preview" | "wish" | "review" | "animation" | "success";
+interface Props {
+  frameSrc?: string | null;
+  mirror?: boolean;
+  boxSize?: string;
+  eventId: string;
+}
+
+interface WishData {
+  name: string;
+  wish: string;
+}
+
+// ---------------------------------------------
+// Component
+// ---------------------------------------------
 
 export default function PhotoBoothWizard({
   frameSrc = null,
   mirror = true,
-  boxSize = "min(50vw, 40svh)",
+  boxSize = "min(88vw, 60svh)",
   eventId,
-}: {
-  frameSrc?: string | null;
-  mirror?: boolean;
-  boxSize?: string;
-  eventId: string; // Recibe el eventId como prop
-}) {
+}: Props) {
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<
-    "capture" | "preview" | "wish" | "loading" | "result" | "animation" | "success"
-  >("capture");
-  const [framedShot, setFramedShot] = useState<string | null>(null); // dataURL (con marco) para mostrar
-  const [rawShot, setRawShot] = useState<string | null>(null); // dataURL (sin marco) para la Function
-  const [wish, setWish] = useState<{ name: string; wish: string }>({ name: "", wish: "" });
-  const [aiUrl, setAiUrl] = useState<string | null>(null);
-  const [framedUrl, setFramedUrl] = useState<string | null>(null);
-  const [taskId, setTaskId] = useState<string | null>(null);
 
-  const [color, setColor] = useState<string | null>(null);
-  const [submit, setSubmit] = useState<boolean>(false);
+  // UI flow
+  const [step, setStep] = useState<Step>("capture");
   const [showAnimation, setShowAnimation] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const unsubRef = useRef<(() => void) | undefined>(undefined);
-  const [framedShotWithText, setFramedShotWithText] = useState<string | null>(null); // Nuevo estado para la imagen con texto
 
+  // Images
+  const [, setRawShot] = useState<string | null>(null); // sin marco
+  const [framedShot, setFramedShot] = useState<string | null>(null); // con marco
+  const [framedShotWithText, setFramedShotWithText] = useState<string | null>(
+    null
+  ); // con texto
+
+  // Wish
+  const [wish, setWish] = useState<WishData>({ name: "", wish: "" });
+  const [color, setColor] = useState<string | null>(null);
+
+  // Submission
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitReady, setSubmitReady] = useState(false); // habilita el botón después de confirmar el deseo
+  const [error, setError] = useState<string | null>(null);
+
+  // ---------------------------------------------
+  // Derived values & effects
+  // ---------------------------------------------
+
+  // Frame aleatorio estable por montaje si no llega por props
+  const resolvedFrameSrc = useMemo(() => {
+    if (frameSrc) return frameSrc;
+    const r = Math.floor(Math.random() * 3) + 1; // 1..3
+    return `/CORTES/POLAROIDS/POLAROID_0${r}.png`;
+  }, [frameSrc]);
+
+  // Color desde querystring (?color=#fff)
   useEffect(() => {
-    if (!searchParams) {
-    
-      setColor(null);
-    } else {
-     
-      setColor(searchParams.get("color") as string || null);
-    }
-    return () => {
-      if (unsubRef.current) {
-        unsubRef.current();
-        unsubRef.current = undefined;
-      }
-    };
+    const c = searchParams?.get("color");
+    setColor(c ?? null);
   }, [searchParams]);
 
-   const handleCaptured = (payload: { framed: string; raw: string }) => {
-    setFramedShot(payload.framed);
-    setRawShot(payload.raw);
-    setStep("preview");
-    setSubmit(false);
-  };
+  // Tipo de dispositivo (no cambia durante la sesión)
+  const deviceType = useMemo<"mobile" | "tablet" | "desktop">(() => {
+    if (typeof navigator === "undefined") return "desktop";
+    const ua = navigator.userAgent;
+    if (/iPad|Tablet/i.test(ua)) return "tablet";
+    if (/Mobile|Android|iPhone/i.test(ua)) return "mobile";
+    return "desktop";
+  }, []);
 
-  const handleWishConfirm = async (wishData: { name: string; wish: string }) => {
-    setWish(wishData);
-    if (framedShot && wishData.wish) {
-      const result = await addTextToImage(framedShot, wishData);
-      setSubmit(false);
-      setFramedShotWithText(result); // Guardar la imagen con texto en un estado separado
-    }
-    setSubmit(true);
-    setStep("preview");
-  };
+  // ---------------------------------------------
+  // Handlers
+  // ---------------------------------------------
 
-  const resetAll = () => {
-    setFramedShot(null);
-    setRawShot(null);
-    setWish({ name: "", wish: "" });
-    setAiUrl(null);
-    setFramedUrl(null);
-    setTaskId(null);
+  const resetAll = useCallback(() => {
     setStep("capture");
-    setSubmit(false);
+    setShowAnimation(false);
+    setRawShot(null);
+    setFramedShot(null);
+    setFramedShotWithText(null);
+    setWish({ name: "", wish: "" });
+    setSubmitReady(false);
+    setIsSubmitting(false);
     setError(null);
-  };
+  }, []);
 
-  const submitAndProcess = async () => {
-    if (isSubmitting) return; // Prevenir múltiples envíos
-    
+  const handleCaptured = useCallback(
+    (payload: { framed: string; raw: string }) => {
+      setFramedShot(payload.framed);
+      setRawShot(payload.raw);
+      setSubmitReady(false);
+      setStep("preview");
+    },
+    []
+  );
+
+  const handleWishConfirm = useCallback(
+    async (wishData: WishData) => {
+      setWish(wishData);
+
+      if (framedShot && wishData.wish) {
+        try {
+          const withText = await addTextToImage(framedShot, wishData);
+          setFramedShotWithText(withText);
+        } catch (e) {
+          console.error("addTextToImage failed", e);
+          setFramedShotWithText(framedShot); // fallback sin texto
+        }
+      }
+
+      setSubmitReady(true);
+      setStep("review");
+    },
+    [framedShot]
+  );
+
+  const handleAnimationComplete = useCallback(() => {
+    setShowAnimation(false);
+    setSubmitReady(false);
+    setStep("success");
+  }, []);
+
+  // ---------------------------------------------
+  // Submit flow
+  // ---------------------------------------------
+
+  const submitAndProcess = useCallback(async () => {
+    if (isSubmitting) return; // evitar dobles envíos
+
     setIsSubmitting(true);
     setError(null);
-    
-    try {
-      // Validar que tengamos todos los datos necesarios
-      if (!eventId) {
-        throw new Error("Event ID no encontrado");
-      }
-      
-      if (!framedShotWithText) {
-        throw new Error("No hay foto capturada");
-      }
-      
-      if (!wish.name || !wish.wish) {
-        throw new Error("Nombre y deseo son requeridos");
-      }
 
-      // Mostrar animación mientras se procesa
+    try {
+      if (!eventId) throw new Error("Event ID no encontrado");
+      if (!framedShotWithText) throw new Error("No hay foto capturada");
+      if (!wish.name || !wish.wish)
+        throw new Error("Nombre y deseo son requeridos");
+
+      // Mostrar animación durante el proceso
       setShowAnimation(true);
       setStep("animation");
 
-      // 1. PRIMERO: Subir la imagen a Firebase Storage
-      console.log("Subiendo imagen a Storage...");
-      const photoUrl = await uploadWishPhoto(framedShotWithText, eventId, wish.name);
-      console.log("Imagen subida exitosamente:", photoUrl);
+      // 1) Subir imagen a Storage
+      const photoUrl = await uploadWishPhoto(
+        framedShotWithText,
+        eventId,
+        wish.name
+      );
 
-      // Obtener información del dispositivo
-      const deviceType = /Mobile|Android|iPhone/i.test(navigator.userAgent) 
-        ? "mobile" 
-        : /iPad|Tablet/i.test(navigator.userAgent) 
-        ? "tablet" 
-        : "desktop";
-
-      // *** PARTE DE UBICACIÓN DESHABILITADA ***
-      /*
-      // Obtener ubicación si está disponible
-      let location: { lat: number; lng: number } | undefined;
-      if (navigator.geolocation) {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 5000,
-              maximumAge: 0
-            });
-          });
-          location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-        } catch (geoError) {
-          console.warn("No se pudo obtener la ubicación:", geoError);
-          // Continuar sin ubicación
-        }
-      }
-      */
-      // location queda como undefined
-
-      // 2. DESPUÉS: Crear el deseo en Firestore con la URL ya subida
-      const wishData = {
+      // 2) Crear documento en Firestore
+      const payload = {
         userName: wish.name,
         message: wish.wish,
-        photoUrl: photoUrl, // URL ya subida a Storage
+        photoUrl,
         approved: true,
-        deviceType: deviceType,
-        location: {lat: 4.60971, lng: -74.08175}, // Sin ubicación
+        deviceType,
+        location: { lat: 4.60971, lng: -74.08175 }, // placeholder sin geolocalización
         colorTheme: color || "#FFD700",
         public: true,
       };
 
-      console.log("Guardando deseo en Firestore:", wishData);
+      await createWish(eventId, payload);
 
-      // Guardar en Firestore (ahora photoUrl ya es una URL de Storage)
-      const wishId = await createWish(eventId, wishData);
-
-      console.log("Deseo creado con ID:", wishId);
-
-      // Esperar un poco antes de completar la animación
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-    } catch (error) {
-      console.error("Error al enviar el deseo:", error);
-      setError(error instanceof Error ? error.message : "Error al enviar el deseo");
+      // pequeña pausa opcional para dejar terminar la animación
+      await new Promise((r) => setTimeout(r, 800));
+    } catch (e: any) {
+      console.error("Error al enviar el deseo:", e);
+      setError(e?.message || "Error al enviar el deseo");
       setShowAnimation(false);
       setStep("preview");
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [
+    color,
+    deviceType,
+    eventId,
+    framedShotWithText,
+    isSubmitting,
+    wish.name,
+    wish.wish,
+  ]);
 
-  // Función para subir foto a Storage
-  const uploadWishPhoto = async (
-    imageDataUrl: string, 
-    eventId: string, 
+  // ---------------------------------------------
+  // Helpers
+  // ---------------------------------------------
+
+  async function uploadWishPhoto(
+    imageDataUrl: string,
+    eventId: string,
     userName: string
-  ): Promise<string> => {
-    const { getStorage, ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-    
+  ): Promise<string> {
+    const { getStorage, ref, uploadBytes, getDownloadURL } = await import(
+      "firebase/storage"
+    );
+
     const storage = getStorage();
-    
-    // Convertir Data URL a Blob
     const blob = dataURLtoBlob(imageDataUrl);
-    
-    // Crear nombre único para el archivo
+
     const timestamp = Date.now();
-    const sanitizedUserName = userName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const sanitizedUserName = userName
+      .replace(/[^a-z0-9]/gi, "_")
+      .toLowerCase();
     const fileName = `${timestamp}_${sanitizedUserName}.png`;
-    
-    // Crear referencia en Storage: wishes_eventId/fileName
+
     const storageRef = ref(storage, `wishes_${eventId}/${fileName}`);
-    
-    // Subir archivo
-    await uploadBytes(storageRef, blob, { 
-      contentType: 'image/png',
+
+    await uploadBytes(storageRef, blob, {
+      contentType: "image/png",
       customMetadata: {
-        userName: userName,
-        eventId: eventId,
-        uploadedAt: new Date().toISOString()
-      }
+        userName,
+        eventId,
+        uploadedAt: new Date().toISOString(),
+      },
     });
-    
-    // Obtener y retornar URL de descarga
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
-  };
 
-  // Helper para convertir Data URL a Blob
-  const dataURLtoBlob = (dataurl: string): Blob => {
-    const arr = dataurl.split(',');
-    const mimeMatch = arr[0].match(/:(.*?);/);
-    if (!mimeMatch) throw new Error("Invalid Data URL format");
+    return getDownloadURL(storageRef);
+  }
+
+  function dataURLtoBlob(dataurl: string): Blob {
+    const [meta, base64] = dataurl.split(",");
+    const mimeMatch = meta.match(/:(.*?);/);
+    if (!mimeMatch) throw new Error("Formato de Data URL inválido");
     const mime = mimeMatch[1];
-    
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    
-    while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    
-    return new Blob([u8arr], { type: mime });
+
+    const binary = atob(base64);
+    const len = binary.length;
+    const u8 = new Uint8Array(len);
+    for (let i = 0; i < len; i++) u8[i] = binary.charCodeAt(i);
+    return new Blob([u8], { type: mime });
+  }
+
+  const handleDownload = (img: string) => {
+    const a = document.createElement("a");
+    a.href = img;
+    a.download = `deseo_gondola_${Date.now()}.png`;
+    a.click();
   };
 
-  const handleAnimationComplete = () => {
-    setShowAnimation(false);
-    setSubmit(false);
-    setStep("success");
-  };
+  // ---------------------------------------------
+  // Render
+  // ---------------------------------------------
+
+  const bgImage =
+    step === "success"
+      ? "url(/CORTES/CIERRE/FONDO-CIERRE.png)"
+      : "url(/CORTES/HOME/FONDO_HOME.jpg)";
 
   return (
-    <div className="h-[90vh] w-[100vw] flex items-center flex-col justify-center"
-    style={{ backgroundImage: step === "success" ? "url(/CORTES/CIERRE/FONDO-CIERRE.png)": "url(/CORTES/HOME/FONDO_HOME.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}>
+    <div
+      className="h-[100vh] w-[100vw] flex items-center flex-col justify-center"
+      style={{
+        backgroundImage: bgImage,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
       {showAnimation && framedShotWithText && (
-        <ParticleAnimation 
+        <ParticleAnimation
           imageSrc={framedShotWithText}
           onComplete={handleAnimationComplete}
         />
@@ -252,9 +287,8 @@ export default function PhotoBoothWizard({
 
       {step === "capture" && (
         <CaptureStep
-          frameSrc={frameSrc || `/CORTES/POLAROIDS/POLAROID_0${Math.floor(Math.random() * 3) + 1}.png`} // Selección aleatoria de imagen entre 1 y 3
+          frameSrc={resolvedFrameSrc}
           mirror={mirror}
-          boxSize={boxSize}
           onCaptured={handleCaptured}
           wish={wish}
         />
@@ -262,24 +296,29 @@ export default function PhotoBoothWizard({
 
       {step === "preview" && framedShot && (
         <PreviewStep
-          framedShot={framedShotWithText || framedShot} // Usar la imagen con texto si está disponible
+          framedShot={framedShotWithText || framedShot}
           boxSize={boxSize}
           onRetake={resetAll}
           onConfirm={() => setStep("wish")}
-          wish={wish} // Pasar el objeto completo del deseo
+          wish={wish}
         />
       )}
 
-      {step === "wish" && framedShot && (
+      {step === "wish" && (
         <WishStep
-          
-         
           onBack={() => setStep("preview")}
           onConfirm={handleWishConfirm}
         />
       )}
 
-      {submit && !isSubmitting && step !== "wish" && (
+      {step === "review" && (
+        <ReviewStep
+          framedShot={framedShotWithText || framedShot!}
+          onConfirmSend={submitAndProcess}
+        />
+      )}
+
+      {/* {submitReady && !isSubmitting && step !== "wish" && (
         <ButtonPrimary
           onClick={submitAndProcess}
           label="CONFIRMAR Y ENVIAR"
@@ -289,7 +328,7 @@ export default function PhotoBoothWizard({
           ariaLabel="Confirmar y enviar deseo"
           className="absolute bottom-20"
         />
-      )}
+      )} */}
 
       {isSubmitting && !showAnimation && (
         <div className="mt-4 flex items-center gap-2 text-gray-600">
@@ -299,33 +338,15 @@ export default function PhotoBoothWizard({
       )}
 
       {step === "success" && (
-        <div className="h-screen w-screen flex flex-col items-center justify-around text-white"
-    style={{ backgroundImage: "url(/CORTES/CIERRE/FONDO-CIERRE.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
-        
-          <div className="text-center space-y-6 animate-fade-in">
-            <div className="text-6xl mb-4">✨</div>
-            <h2 className="text-4xl bg-black/50 p-2 rounded-md font-bold">¡Deseo enviado!</h2>
-            <div className="bg-black/50">
-          
+        <SuccessStepTextOnly
+          onDownload={() => handleDownload(framedShotWithText!)}
+          onFinish={resetAll}
+        />
+      )}
 
-            </div>
-          </div>
-            <div className="pt-8 flex flex-col gap-8">
-             <p className="text-xl text-white max-w-md mx-auto bg-black/50  p-2 rounded-md">
-            
-              Tu deseo se esta juntando con muchos otros espera
-            </p>
-            <p className="text-xl text-white max-w-md mx-auto bg-black/50  p-2 rounded-md">
-
-              Por hacer parte de GÓNDOLA 2025
-            </p>
-              <img
-                src="/CORTES/CIERRE/GRACIAS.png"
-                alt="Gracias"
-                className="
-              h-32 mx-auto"
-              />
-            </div>
+      {error && step !== "success" && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-md shadow">
+          {error}
         </div>
       )}
     </div>

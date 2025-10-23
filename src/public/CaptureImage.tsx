@@ -19,31 +19,29 @@ type NavigatorWithLegacy = Navigator & {
 };
 
 export default function FrameCamera({
-  // sin marco por defecto
   frameSrc = null,
   mirror = true,
   boxSize = "min(88vw, 60svh)",
   onReady,
+  videoStyle, // <-- NUEVO
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
   onReady?: (api: { getVideoEl: () => HTMLVideoElement | null }) => void;
+  videoStyle?: React.CSSProperties; // <-- NUEVO
 }) {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Polyfill sin `any`
   function ensureGetUserMedia(): boolean {
     if (typeof navigator === "undefined") return false;
     const n = navigator as NavigatorWithLegacy;
 
-    const legacy =
-      n.getUserMedia || n.webkitGetUserMedia || n.mozGetUserMedia;
+    const legacy = n.getUserMedia || n.webkitGetUserMedia || n.mozGetUserMedia;
 
     if (!n.mediaDevices) {
-      // Creamos el objeto mediaDevices de forma segura sin usar `any`
       (n as unknown as { mediaDevices: MediaDevices }).mediaDevices = {} as MediaDevices;
     }
 
@@ -67,18 +65,17 @@ export default function FrameCamera({
     const start = async () => {
       if (typeof window === "undefined") return;
 
-      // (Opcional) Si prefieres intentar siempre y capturar el error en catch, puedes comentar este bloque:
       const isLocalhost =
         typeof location !== "undefined" &&
         /^localhost$|^127\.0\.0\.1$/.test(location.hostname);
       if (window.isSecureContext === false && !isLocalhost) {
-        setError("La cámara requiere HTTPS (o localhost). Abre el sitio en https:// o usa localhost.");
+        setError("La cámara requiere HTTPS (o localhost).");
         return;
       }
 
       const hasGUM = ensureGetUserMedia();
       if (!hasGUM) {
-        setError("getUserMedia no está disponible en este navegador/entorno.");
+        setError("getUserMedia no está disponible.");
         return;
       }
 
@@ -90,11 +87,11 @@ export default function FrameCamera({
 
         const stream = await (navigator.mediaDevices as MediaDevices).getUserMedia({
           audio: false,
-            video: {
-    facingMode: "user",
-    width: { ideal: 320, max: 1920 },
-    height: { ideal: 240, max: 1080 },
-  },
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+          },
         });
 
         if (!mounted) {
@@ -105,7 +102,7 @@ export default function FrameCamera({
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => { });
+          await videoRef.current.play().catch(() => {});
         }
         setError(null);
       } catch (e) {
@@ -130,25 +127,23 @@ export default function FrameCamera({
   }, [onReady]);
 
   return (
-    <div
-      className="w-full flex flex-col items-center justify-center gap-2"
-      
-    >
-      <div
-        className="relative overflow-hidden rounded-2xl shadow-2xl"
-        style={{ width: boxSize, height: boxSize }}
-      >
-        <video
-          ref={videoRef}
-          className="w-full h-auto object-cover"
-          style={{ transform: mirror ? "scaleX(-1)" : "none" }}
-          playsInline
-          autoPlay
-          muted
-        />
-      </div>
-
-      {error && <p className="text-red-500 text-sm text-center px-3">{error}</p>}
+    <div className="w-full h-full relative overflow-hidden rounded-2xl shadow-2xl" style={{ width: boxSize, height: boxSize }}>
+      <video
+        ref={videoRef}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          transform: mirror ? "scaleX(-1)" : "none",
+          ...videoStyle, // <-- aplicamos clip-path y cualquier override
+        }}
+        playsInline
+        autoPlay
+        muted
+      />
+      {error && (
+        <p className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1 rounded">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
