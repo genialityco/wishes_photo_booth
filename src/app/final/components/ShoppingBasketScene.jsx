@@ -1,18 +1,20 @@
+"use client";
+
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
-
+import { Html } from '@react-three/drei';
 import { createShoppingBasketGeometry } from './BasketShape';
-
+import { createShoppingCartGeometry } from './ShopingCartShape';
 export default function ShoppingBasketScene({ photoUrls, message }) {
   // ✅ LOADER DENTRO DEL CANVAS
   const font = useLoader(FontLoader, '/fonts/Roboto_Regular.json');
-  const repeatedPhotoUrls = Array.from({ length: 80 }, () => photoUrls).flat();
-  const textures = useLoader(THREE.TextureLoader, repeatedPhotoUrls);
+  
+  const textures = useLoader(THREE.TextureLoader, photoUrls);
   const [phase, setPhase] = useState(0);
   const numBasketsPhase1_2 = 100;
-  const numBasketsPhase3 = 2500;
+  const numBasketsPhase3 = 2000;
   const numBaskets = numBasketsPhase3;
 
   // 🌊 CONFIGURACIÓN DE CASCADAS
@@ -37,6 +39,8 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
     startTime: 0,
     initialY: 0
   })));
+
+  const [isMessageComplete, setIsMessageComplete] = useState(false);
 
   // Nuevos refs para partículas luminosas
   const particleRefs = useRef([]);
@@ -102,8 +106,8 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   ]);
 
   // 🛒 GEOMETRÍA CANASTA
-  const basketGeometry = useMemo(() => createShoppingBasketGeometry(), []);
-
+  //const basketGeometry = useMemo(() => createShoppingBasketGeometry(), []);
+    const basketGeometry = useMemo(() => createShoppingCartGeometry(), [])
   // Inicializar partículas
   useEffect(() => {
     particleRefs.current = Array.from({ length: 500 }, () => ({
@@ -137,7 +141,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
     const timers = [
       //setTimeout(() => setPhase(2), 3000),
       setTimeout(() => setPhase(2), 5000),
-      setTimeout(() => setPhase(3), 30000),
+      setTimeout(() => setPhase(3), 32000),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -147,10 +151,10 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
     if (!font) return;
     console.log(`🛒 Generando texto multilínea para "${message}"...`);
     const thickness = 6;
-    const size = 16;
+    const size = 14;
     const maxLineWidth = 160;
-    const lineHeight = 24;
-    const verticalOffset = -20; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
+    const lineHeight = 20;
+    const verticalOffset = -12; // 🔥 CONTROLA LA POSICIÓN VERTICAL: negativo = más abajo, positivo = más arriba
     const letterSpacing = 3;
     
     const words = message.split(' ');
@@ -379,14 +383,14 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         const totalDelay = cascadeDelay + positionDelay;
         
         const localT = Math.max(0, phase2Time - totalDelay);
-        const appearanceDuration = 3.0;
+        const appearanceDuration = 5;
         const progress = Math.min(1, localT / appearanceDuration);
 
         const startY = 50;
         const endY = collagePos.y;
         
         const continuousProgress = progress + (localT - appearanceDuration) * 0.1;
-        const currentY = 250 + (endY - startY) * progress - (continuousProgress - 1) * 50;
+        const currentY = 150 + (endY - startY) * progress - (continuousProgress - 1) * 30;
         
         g.position.set(collagePos.x, currentY, collagePos.z);
         
@@ -401,7 +405,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         m.material.uniforms.opacity.value = Math.min(1, progress * 1.5);
         m.material.uniforms.time.value = t;
 
-        if (disStartTimes.current[i] === 0 && localT > appearanceDuration + disRandomDelays[i]) {
+        if (disStartTimes.current[i] === 0 && localT > appearanceDuration + disRandomDelays[i] + 10) {
           disStartTimes.current[i] = t;
           activateParticlesForImage(i, g.position);
           
@@ -450,6 +454,11 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
       if (phase === 3) {
         basketRef.current.visible = false;
         state.visible = false;
+
+       
+  
+    setIsMessageComplete(true);
+  
         return;
       }
 
@@ -717,6 +726,42 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
           <primitive object={basketGeometry.clone()} />
         </group>
       ))}
+
+    {isMessageComplete && (
+  <Html
+    // Posición absoluta: centrado en X, 50px desde el bottom en Y
+   
+    center // Centra horizontalmente respecto al contenedor
+    position={[0, -20, 0]}
+    style={{
+      
+      pointerEvents: 'none',
+      userSelect: 'none',
+      width: '80vw', // Ancho amplio, ajusta según necesidad (p.ej., '800px' para fijo)
+      maxWidth: '1920px', // Límite máximo para pantallas grandes
+      animation: 'fadeIn 1.5s ease-in-out',
+    }}
+  >
+    <img
+      src="/images/FRASE_PANTALLA_CIERRE_SIN-GRACIAS.png" // Reemplaza con la URL de tu imagen
+      alt="Final image"
+      style={{
+        width: '100%', // Ocupa todo el ancho del contenedor
+        height: 'auto', // Mantiene la proporción
+        display: 'block',
+        margin: '0 auto', // Centrado horizontal
+        filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))', // Efecto de brillo
+      }}
+    />
+    <style jsx>{`
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `}</style>
+  </Html>
+)}
     </group>
+
   );
 }

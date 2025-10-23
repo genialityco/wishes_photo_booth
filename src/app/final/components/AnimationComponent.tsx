@@ -12,7 +12,7 @@ export default function AnimationComponent({
     <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden" }}>
       {/* VIDEO DE FONDO */}
       <video
-        src="/CORTES/VIDEOS/PANTALLA_FENALCO_MENSAJES.mp4"   // 🔄 Cambia por tu ruta
+        src="/CORTES/VIDEOS/PANTALLA_FENALCO_MENSAJES.mp4"
         autoPlay
         loop
         muted
@@ -24,8 +24,17 @@ export default function AnimationComponent({
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          zIndex: -1, // 🔄 queda detrás del Canvas
+          zIndex: -1,
         }}
+      />
+
+      {/* AUDIO DE FONDO */}
+      <audio
+        src="/audio/audio_animation.mp3"
+        autoPlay
+        loop
+        playsInline
+        style={{ display: "none" }} // ocultamos el control del navegador
       />
 
       {/* CANVAS DE THREE.JS */}
