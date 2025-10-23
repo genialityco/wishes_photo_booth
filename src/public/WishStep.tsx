@@ -11,7 +11,7 @@ export default function WishStep({
   onConfirm: (wishData: { name: string; wish: string }) => void; // Cambié el tipo de onConfirm para aceptar un objeto
 }) {
   const [formData, setFormData] = useState({ name: "", wish: "" }); // Combina nombre y deseo en un solo estado
-  const maxCharacters = 100;
+  const maxCharacters = 30;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

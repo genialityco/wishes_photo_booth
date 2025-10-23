@@ -8,15 +8,15 @@ import { createShoppingBasketGeometry } from './BasketShape';
 export default function ShoppingBasketScene({ photoUrls, message }) {
   // ✅ LOADER DENTRO DEL CANVAS
   const font = useLoader(FontLoader, '/fonts/Roboto_Regular.json');
-  const repeatedPhotoUrls = Array.from({ length: 1 }, () => photoUrls).flat();
+  const repeatedPhotoUrls = Array.from({ length: 80 }, () => photoUrls).flat();
   const textures = useLoader(THREE.TextureLoader, repeatedPhotoUrls);
   const [phase, setPhase] = useState(0);
   const numBasketsPhase1_2 = 100;
-  const numBasketsPhase3 = 3000;
+  const numBasketsPhase3 = 2500;
   const numBaskets = numBasketsPhase3;
 
   // 🌊 CONFIGURACIÓN DE CASCADAS
-  const numCascadeLines = 6; // 🔥 AJUSTA ESTE NÚMERO: cantidad de líneas de cascada paralelas
+  const numCascadeLines = 10; // 🔥 AJUSTA ESTE NÚMERO: cantidad de líneas de cascada paralelas
 
   // Refs
   const cameraRef = useRef(null);
@@ -66,7 +66,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   const photoCollagePositions = useMemo(() => {
     const positions = [];
     const photosPerLine = Math.ceil(textures.length / numCascadeLines);
-    const spacingX = 35; // Espaciado horizontal entre líneas de cascada
+    const spacingX = 20; // Espaciado horizontal entre líneas de cascada
     const spacingY = 20; // Espaciado vertical entre fotos en la misma cascada
     const totalWidth = (numCascadeLines - 1) * spacingX;
     
@@ -78,7 +78,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         x: (lineIndex - (numCascadeLines - 1) / 2) * spacingX, // Distribuir líneas horizontalmente
         y: -positionInLine * spacingY, // Cada foto más abajo en su cascada
         z: -5 + Math.random() * 2,
-        rotation: (Math.random() - 0.5) * 0.15,
+        rotation: (Math.random() - 0.5) * 0.3,
         rotationY: (Math.random() - 0.5) * 0.3,
         scale: 1.0 + Math.random() * 0.3,
         cascadeIndex: lineIndex, // Índice de la línea de cascada
@@ -135,9 +135,9 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   // FASES
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 3000),
-      setTimeout(() => setPhase(2), 8000),
-      setTimeout(() => setPhase(3), 25000),
+      //setTimeout(() => setPhase(2), 3000),
+      setTimeout(() => setPhase(2), 5000),
+      setTimeout(() => setPhase(3), 30000),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -146,7 +146,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   useEffect(() => {
     if (!font) return;
     console.log(`🛒 Generando texto multilínea para "${message}"...`);
-    const thickness = 8;
+    const thickness = 6;
     const size = 16;
     const maxLineWidth = 160;
     const lineHeight = 24;
@@ -386,7 +386,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         const endY = collagePos.y;
         
         const continuousProgress = progress + (localT - appearanceDuration) * 0.1;
-        const currentY = 120 + (endY - startY) * progress - (continuousProgress - 1) * 50;
+        const currentY = 250 + (endY - startY) * progress - (continuousProgress - 1) * 50;
         
         g.position.set(collagePos.x, currentY, collagePos.z);
         
@@ -592,18 +592,21 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
 
       {/* 📸 FOTOS COMPLETAS */}
       {textures.map((tex, i) => {
-        const photoGeometry = useMemo(() => {
-          const geom = new THREE.PlaneGeometry(18, 12, 80, 53);
-          return geom;
-        }, []);
-
+       const photoGeometry = useMemo(() => {
+  const aspectRatio = 1080 / 1515; // ≈ 0.712
+  const height = 15; // Keep the original height for consistency
+  const width = height * aspectRatio; // Calculate width to maintain aspect ratio
+  const geom = new THREE.PlaneGeometry(width, height, 80, 53); // Use calculated width
+  return geom;
+}, []);
+        
         const material = useMemo(() => new THREE.ShaderMaterial({
           uniforms: {
             map: { value: tex },
             opacity: { value: 0 },
             time: { value: 0 },
             startTime: { value: 0 },
-            delay: { value: 1.5 },
+            delay: { value: 3 },
           },
           vertexShader: `
             uniform float time;
@@ -611,6 +614,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
             uniform float delay;
             varying vec2 vUv;
             varying float vDissolve;
+            varying vec3 vWorldPos;
             
             void main() {
               vUv = uv;
@@ -627,21 +631,45 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
                   pos *= (1.0 - vDissolve);
                 }
               } else {
-                vDissolve = 0.0;
+                vDissolve = 1.1;
               }
-              
+              vWorldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
               gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
             }
           `,
-          fragmentShader: `
+         fragmentShader: `
             uniform sampler2D map;
             uniform float opacity;
+            uniform float time;
+            uniform float startTime;
+            uniform float delay;
             varying vec2 vUv;
             varying float vDissolve;
+            varying vec3 vWorldPos;
+            
             void main() {
               vec4 texColor = texture2D(map, vUv);
-              float alpha = texColor.a * opacity * (1.0 - vDissolve);
-              gl_FragColor = vec4(texColor.rgb, alpha);
+              
+              float effectiveTime = time - startTime - delay;
+              
+              // Durante la animación normal (no desintegración)
+              if (effectiveTime <= 0.0 || startTime == 0.0) {
+                float alpha = texColor.a * opacity;
+                gl_FragColor = vec4(texColor.rgb, alpha);
+              } else {
+                // Durante la desintegración
+                float alpha = texColor.a * opacity * (1.0 - vDissolve);
+                
+                // Añadir brillo sutil a las partículas en desintegración
+                vec3 finalColor = texColor.rgb;
+                if (vDissolve > 0.4 && vDissolve < 0.9) {
+                  // Efecto de luz suave en los bordes de desintegración
+                  float edgeGlow = smoothstep(0.4, 0.65, vDissolve) * (1.0 - smoothstep(0.65, 0.9, vDissolve));
+                  finalColor += vec3(1.0, 0.9, 0.6) * edgeGlow * 0.25;
+                }
+                
+                gl_FragColor = vec4(finalColor, alpha);
+              }
             }
           `,
           transparent: true,
