@@ -152,7 +152,7 @@ export default function PreviewStep({
       {/* MAIN (idéntico layout/offset que CaptureStep) */}
       <main
         className="z-30 mx-auto flex w-full max-w-6xl items-center justify-center"
-        style={{ position: "absolute", top: "25%" }}
+        style={{ position: "absolute", top: "20%" }}
       >
         <div className="relative w-full flex items-center justify-center">
           {display && (
