@@ -70,7 +70,7 @@ export default function WishesAnimationPage() {
           where('approved', '==', true),
           where('public', '==', true),
           orderBy('createdAt', 'desc'),
-          fqLimit(100) // Limitar a 100 wishes máximo
+          fqLimit(300) // Limitar a 100 wishes máximo
         );
 
         const snapshot = await getDocs(q);
