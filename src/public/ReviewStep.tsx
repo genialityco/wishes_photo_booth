@@ -1,28 +1,23 @@
+/* ==============================
+ * ReviewStep.tsx
+ * (preview sólo visual + botón Confirmar/Enviar en el footer del propio componente)
+ * Estructura y tamaño idénticos a Capture/Preview
+ * ============================== */
+
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ButtonPrimary from "./components/button";
-// import { defaultTextStyle } from "@/context/Context";
 
-export default function PreviewStep({
+export default function ReviewStep({
   framedShot,
-  onRetake,
-  onConfirm,
-  // Mantén boxSize solo si quieres forzar un tamaño específico; aquí lo calculamos como en CaptureStep
-  // boxSize,
-  wish = { name: "", wish: "" },
+  onConfirmSend,
 }: {
-  framedShot: string;
-  boxSize?: string; // opcional, si no se provee se calcula con computeDisplay
-  onRetake: () => void;
-  onConfirm?: () => void;
-  wish?: { name: string; wish: string };
-  wishStyle?: unknown;
+  framedShot: string;             // imagen final (idealmente con texto ya aplicado)
+  onConfirmSend: () => void;      // acción de Confirmar y Enviar
 }) {
-  // const style = { ...defaultTextStyle };
-
-  // Refs y estados para replicar EXACTA estructura/medidas de CaptureStep
+  // Refs y estados para replicar EXACTA estructura/medidas de Capture/Preview
   const headerRef = useRef<HTMLElement | null>(null);
   const footerRef = useRef<HTMLElement | null>(null);
   const frameImgRef = useRef<HTMLImageElement | null>(null);
@@ -30,25 +25,21 @@ export default function PreviewStep({
   const [frameNat, setFrameNat] = useState<{ w: number; h: number } | null>(null);
   const [display, setDisplay] = useState<{ w: number; h: number } | null>(null);
 
-  // Llevar el scroll al inicio al entrar
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, []);
 
-  // === computeDisplay (idéntico a CaptureStep) ===
+  // === computeDisplay (idéntico a CaptureStep/PreviewStep) ===
   const computeDisplay = useCallback((natW: number, natH: number) => {
-    // ancho disponible: paddings laterales del container
-    const vw = Math.min(window.innerWidth, 1280); // cap opcional
+    const vw = Math.min(window.innerWidth, 1280);
     const sidePadding = 32 * 2;
     const maxW = Math.max(280, Math.min(vw - sidePadding, 960));
 
-    // alto disponible: 100dvh - header - footer - márgenes
     const hdr = headerRef.current?.offsetHeight ?? 0;
     const ftr = footerRef.current?.offsetHeight ?? 0;
-    const verticalGaps = 24 + 24; // py aprox
+    const verticalGaps = 24 + 24;
     const maxH = Math.max(220, window.innerHeight - hdr - ftr - verticalGaps);
 
-    // respetar AR
     let dispW = Math.min(maxW, Math.round(maxH * (natW / natH)));
     let dispH = Math.round(dispW * (natH / natW));
 
@@ -100,7 +91,7 @@ export default function PreviewStep({
     };
   }, [framedShot, computeDisplay]);
 
-  // Recalcular display en resize/orientación (igual a CaptureStep)
+  // Recalcular display en resize/orientación
   useEffect(() => {
     if (!frameNat) return;
     const onResize = () => computeDisplay(frameNat.w, frameNat.h);
@@ -112,8 +103,6 @@ export default function PreviewStep({
     };
   }, [frameNat, computeDisplay]);
 
-  const hasWish = Boolean((wish?.name || "").trim() || (wish?.wish || "").trim());
-
   return (
     <div
       className="
@@ -123,7 +112,7 @@ export default function PreviewStep({
         pb-[env(safe-area-inset-bottom)]
       "
     >
-      {/* HEADER (misma posición que CaptureStep) */}
+      {/* HEADER (misma posición) */}
       <header
         ref={headerRef}
         className="z-40 w-full"
@@ -149,21 +138,21 @@ export default function PreviewStep({
         </div>
       </header>
 
-      {/* MAIN (idéntico layout/offset que CaptureStep) */}
+      {/* MAIN (idéntico layout/offset) */}
       <main
         className="z-30 mx-auto flex w-full max-w-6xl items-center justify-center"
-        style={{ position: "absolute", top: "20%" }}
+        style={{ position: "absolute", top: "15%" }}
       >
-        <div className="relative w-full flex items-center justify-center">
+        <div className="relative w-full flex items-center justify-center my-4 md:my-6">
           {display && (
             <div
               className="relative"
-              style={{width: "300px", height: "400px"}}
+              style={{ width: `${display.w}px`, height: `${display.h}px` }}
             >
-              {/* La foto final en el mismo contenedor del frame */}
+              {/* Imagen final (con o sin texto) */}
               <img
                 src={framedShot}
-                alt="Preview"
+                alt="Revisión final"
                 className="absolute inset-0 w-full h-full object-contain select-none"
                 draggable={false}
               />
@@ -172,31 +161,21 @@ export default function PreviewStep({
         </div>
       </main>
 
-      {/* FOOTER (idéntico a CaptureStep) */}
+      {/* FOOTER: único botón Confirmar y Enviar */}
       <footer
         ref={footerRef}
         className="z-40"
         style={{ position: "absolute", bottom: "3%", width: "100%" }}
       >
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-center gap-3">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-center">
           <ButtonPrimary
-            onClick={onRetake}
-            label="REPETIR FOTO"
-            imageSrc="/CORTES/BOTONES/BOTON-PEQUENO.png"
-            width={180}
+            onClick={onConfirmSend}
+            label="CONFIRMAR Y ENVIAR"
+            imageSrc="/CORTES/BOTONES/BOTON-LARGO.png"
+            width={300}
             height={60}
-            ariaLabel="Repetir foto"
+            ariaLabel="Confirmar y enviar deseo"
           />
-          {onConfirm && (
-            <ButtonPrimary
-              onClick={onConfirm}
-              label={hasWish ? "CONTINUAR" : "SIGUIENTE"}
-              imageSrc="/CORTES/BOTONES/BOTON-PEQUENO.png"
-              width={180}
-              height={60}
-              ariaLabel={hasWish ? "Continuar" : "Agregar deseo"}
-            />
-          )}
         </div>
       </footer>
     </div>
