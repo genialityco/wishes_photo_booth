@@ -141,7 +141,7 @@ export default function ReviewStep({
       {/* MAIN (idéntico layout/offset) */}
       <main
         className="z-30 mx-auto flex w-full max-w-6xl items-center justify-center"
-        style={{ position: "absolute", top: "20%" }}
+        style={{ position: "absolute", top: "15%" }}
       >
         <div className="relative w-full flex items-center justify-center my-4 md:my-6">
           {display && (
@@ -165,7 +165,7 @@ export default function ReviewStep({
       <footer
         ref={footerRef}
         className="z-40"
-        style={{ position: "absolute", bottom: "5%", width: "100%" }}
+        style={{ position: "absolute", bottom: "3%", width: "100%" }}
       >
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-center">
           <ButtonPrimary

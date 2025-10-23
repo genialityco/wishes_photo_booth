@@ -65,10 +65,10 @@ export default function SuccessStepTextOnly({
             ¡Deseo enviado!
           </h2>
           <p className="text-lg md:text-xl max-w-md mx-auto bg-black/50 p-2 rounded-md">
-            Tu deseo se está juntando con muchos otros, espera...
+            Tu deseo se está uniendo con muchos otros, espera...
           </p>
           <p className="text-lg md:text-xl max-w-md mx-auto bg-black/50 p-2 rounded-md">
-            Por hacer parte de <strong>GÓNDOLA 2025</strong>
+            Gracias por hacer parte de <strong>GÓNDOLA 2025</strong>
           </p>
           <img
             src="/CORTES/CIERRE/GRACIAS.png"

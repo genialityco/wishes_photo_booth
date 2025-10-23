@@ -299,7 +299,6 @@ export default function PhotoBoothWizard({
       {step === "preview" && framedShot && (
         <PreviewStep
           framedShot={framedShotWithText || framedShot}
-          boxSize={boxSize}
           onRetake={resetAll}
           onConfirm={() => setStep("wish")}
           wish={wish}

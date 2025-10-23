@@ -176,7 +176,7 @@ export default function PreviewStep({
       <footer
         ref={footerRef}
         className="z-40"
-        style={{ position: "absolute", bottom: "5%", width: "100%" }}
+        style={{ position: "absolute", bottom: "3%", width: "100%" }}
       >
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-center gap-3">
           <ButtonPrimary
