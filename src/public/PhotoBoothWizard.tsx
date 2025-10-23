@@ -271,8 +271,10 @@ export default function PhotoBoothWizard({
 
   return (
     <div
-      className="h-[100vh] w-[100vw] flex items-center flex-col justify-center"
+      className="fixed inset-0 overflow-hidden flex items-center justify-center flex-col"
       style={{
+        height: "var(--app-vh)", // viewport estable
+        width: "100vw",
         backgroundImage: bgImage,
         backgroundSize: "cover",
         backgroundPosition: "center",

@@ -11,8 +11,8 @@ export default function CaptureStep({
   frameSrc = null,
   mirror = true,
   onCaptured,
-  // wish = { name: "", wish: "" },
-}: {
+}: // wish = { name: "", wish: "" },
+{
   frameSrc?: string | null;
   mirror?: boolean;
   onCaptured: (payload: { framed: string; raw: string }) => void;
@@ -187,25 +187,27 @@ export default function CaptureStep({
   // Variants de animación para el contador
   const digitVariants = {
     initial: { scale: 0.6, opacity: 0, y: 8 },
-    animate: { scale: 1, opacity: 1, y: 0, transition: { type: "spring", stiffness: 280, damping: 18 } },
+    animate: {
+      scale: 1,
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 280, damping: 18 },
+    },
     exit: { scale: 0.2, opacity: 0, y: -8, transition: { duration: 0.18 } },
   } as const;
 
   return (
     <div
       className="
-        relative h-screen w-screen
-        grid grid-rows-[auto,1fr,auto]
-        bg-black/50 text-white
-        pb-[env(safe-area-inset-bottom)]
-      "
+      fixed inset-0
+      grid grid-rows-[auto,1fr,auto]
+      overflow-hidden bg-black/50 text-white
+      pb-[env(safe-area-inset-bottom)]
+    "
+      style={{ height: "100svh" }}
     >
       {/* HEADER */}
-      <header
-        ref={headerRef}
-        className="z-40 w-full"
-        style={{ position: "absolute", top: "2%" }}
-      >
+      <header className="z-40 w-full">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between gap-4">
             <img
@@ -226,16 +228,13 @@ export default function CaptureStep({
         </div>
       </header>
 
-      {/* MAIN: usa todo el alto disponible entre header y footer */}
-      <main
-        className="z-30 mx-auto flex w-full max-w-6xl items-center justify-center"
-        style={{ position: "absolute", top: "20%" }}
-      >
-        <div className="relative w-full flex items-center justify-center my-4 md:my-6">
+      {/* MAIN (ocupa el espacio sobrante; sin scroll) */}
+      <main className="z-30 mx-auto w-full max-w-6xl min-h-0">
+        <div className="w-full h-full min-h-0 flex items-center justify-center overflow-hidden px-4">
           {display && (
             <div
               ref={frameBoxRef}
-              className="relative"
+              className="relative max-w-full max-h-full"
               style={{ width: `${display.w}px`, height: `${display.h}px` }}
             >
               {/* Cámara */}
@@ -248,10 +247,15 @@ export default function CaptureStep({
                   videoStyle={{
                     WebkitClipPath: videoClipPath,
                     clipPath: videoClipPath,
+                    width: "100%",
+                    height: "100%",
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    display: "block",
                   }}
                 />
 
-                {/* FLASH local (solo sobre el frame/video) */}
+                {/* FLASH local */}
                 <AnimatePresence>
                   {flash && (
                     <motion.div
@@ -266,7 +270,7 @@ export default function CaptureStep({
                   )}
                 </AnimatePresence>
 
-                {/* Contador centrado en el frame */}
+                {/* Contador */}
                 <AnimatePresence mode="popLayout">
                   {countdown !== null && (
                     <motion.div
@@ -275,7 +279,6 @@ export default function CaptureStep({
                       initial="initial"
                       animate="animate"
                       exit="exit"
-                      variants={{}}
                     >
                       <motion.div
                         variants={digitVariants}
@@ -293,7 +296,7 @@ export default function CaptureStep({
                 </AnimatePresence>
               </div>
 
-              {/* Marco PNG por encima de cámara y flash */}
+              {/* Marco PNG sobre la cámara */}
               {frameSrc && (
                 <img
                   src={frameSrc}
@@ -313,11 +316,7 @@ export default function CaptureStep({
       </main>
 
       {/* FOOTER */}
-      <footer
-        ref={footerRef}
-        className="z-40"
-        style={{ position: "absolute", bottom: "5%", width: "100%" }}
-      >
+      <footer className="z-40 w-full">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-center">
           <ButtonPrimary
             onClick={startCapture}
