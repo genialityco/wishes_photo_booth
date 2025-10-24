@@ -5,7 +5,7 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { Html } from '@react-three/drei';
-import { createShoppingBasketGeometry } from './BasketShape';
+import { createShoppingBasketGeometry } from '../final/components/BasketShape';
 import { createShoppingCartGeometry } from './ShopingCartShape';
 export default function ShoppingBasketScene({ photoUrls, message }) {
   // ✅ LOADER DENTRO DEL CANVAS
@@ -390,7 +390,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         const endY = collagePos.y;
         
         const continuousProgress = progress + (localT - appearanceDuration) * 0.1;
-        const currentY = 120 + (endY - startY) * progress - (continuousProgress - 1) * 30;
+        const currentY = 150 + (endY - startY) * progress - (continuousProgress - 1) * 30;
         
         g.position.set(collagePos.x, currentY, collagePos.z);
         
@@ -739,7 +739,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
       userSelect: 'none',
       width: '80vw', // Ancho amplio, ajusta según necesidad (p.ej., '800px' para fijo)
       maxWidth: '1920px', // Límite máximo para pantallas grandes
-      animation: 'fadeIn 1.5s ease-in-out',
+     
     }}
   >
     <img
@@ -753,12 +753,7 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
         filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))', // Efecto de brillo
       }}
     />
-    <style jsx>{`
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-    `}</style>
+ 
   </Html>
 )}
     </group>

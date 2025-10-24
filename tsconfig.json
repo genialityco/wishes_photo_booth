@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/final/components/ShoppingBasketScene.jsx", "src/app/final/components/ImageCascade.jsx", "src/app/final/components/ImagesCascade.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/finalmsn/ShoppingBasketScene.jsx", "src/app/final/components/ImageCascade.jsx", "src/app/final/components/ImagesCascade.tsx"],
   "exclude": ["node_modules"]
 }

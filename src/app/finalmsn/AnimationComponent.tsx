@@ -2,8 +2,9 @@
 
 import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
-import ShoppingBasketScene from "../../finalmsn/ShoppingBasketScene";
-import WaterfallImageApp from "./ImagesCascade";
+import ShoppingBasketScene from "./ShoppingBasketScene";
+
+
 
 export default function AnimationComponent({
   photoUrls = [] as (string | undefined)[],
@@ -42,9 +43,9 @@ export default function AnimationComponent({
       {/* CANVAS DE THREE.JS */}
       <Canvas gl={{ antialias: true }} camera={{ fov: 75, position: [0, 0, 60] }}>
         <Suspense fallback={null}>
-        
-    <WaterfallImageApp />
- 
+
+    <ShoppingBasketScene photoUrls={photoUrls} message={message} />
+
         </Suspense>
       </Canvas>
     </div>

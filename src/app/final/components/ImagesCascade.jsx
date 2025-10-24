@@ -21,7 +21,7 @@ export default function CascadeAnimation() {
   useEffect(() => {
     if (!wishImage?.length) return;
 
-    const newGroup = wishImage.filter(Boolean);
+    const newGroup = wishImage;
     if (newGroup.length === 0) return;
 
     const textures = [];

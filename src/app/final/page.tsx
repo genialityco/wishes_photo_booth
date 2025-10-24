@@ -269,7 +269,7 @@ export default function WishesAnimationPage() {
             // Agregar los nuevos wishes al final de la cola
             setCurrentWishes((prev) => [...prev, ...wishesData]);
             const urls = wishesData.map((w: Wish) => w.photoUrl as string);
-            setWishImage((prev: string[]) => [...prev, ...urls]);
+            setWishImage(urls);
             // Precargar imágenes
             wishesData.forEach((w) => {
               if (w.photoUrl) {
@@ -455,7 +455,7 @@ export default function WishesAnimationPage() {
         isImages={isImages}
       />
       <div className="fixed bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-col items-center z-[999]">
-        <QRCode value={origin || "https://example.com"} size={150} />
+        <QRCode value={origin || "https://example.com"} size={300} />
         {origin ? (
           <span className="text-[10px] font-medium text-gray-700 mt-2">
             {origin}
