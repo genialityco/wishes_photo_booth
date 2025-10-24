@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   collection,
   query,
@@ -14,7 +14,7 @@ import { db } from "@/lib/firebaseConfig";
 import { getEventById, Wish } from "@/services/eventService";
 
 import QRCode from "react-qr-code";
-import { getDatabase, ref, onValue } from "firebase/database";
+import { getDatabase, ref, onValue, update } from "firebase/database";
 import AnimationComponent from "./AnimationComponent";
 
 export default function WishesAnimationPage() {
@@ -38,7 +38,37 @@ export default function WishesAnimationPage() {
   const [, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [startedRemotely, setStartedRemotely] = useState(false);
+
   const [origin, setOrigin] = useState<string>("");
+  useEffect(() => {
+    if (typeof window !== "undefined") setOrigin(window.location.origin);
+  }, []);
+
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!eventId) return;
+    const rtdb = getDatabase();
+    const redirectRef = ref(rtdb, `events/${eventId}/controls/redirect`);
+
+    const unsub = onValue(redirectRef, (snap) => {
+      const dest = snap.val(); // p.ej. "/finalmsn" | "/final" | null
+      if (typeof dest !== "string" || !dest) return;
+
+      // si ya estamos en /finalmsn y piden /finalmsn, no hacemos nada
+      if (pathname === dest) return;
+
+      // redirige
+      router.push(dest);
+
+      // opcional: limpiar para que no quede “pegado”
+      update(ref(rtdb, `events/${eventId}/controls`), { redirect: null }).catch(
+        () => {}
+      );
+    });
+
+    return () => unsub();
+  }, [eventId, pathname, router]);
 
   // Resolver eventId desde params
   useEffect(() => {
@@ -205,9 +235,7 @@ export default function WishesAnimationPage() {
         <h2 className="text-3xl font-bold mb-2 animate-pulse">
           Esperando la llegada de los deseos...
         </h2>
-        <p className="opacity-80 mb-6">
-          Estos deseos llegarán pronto.
-        </p>
+        <p className="opacity-80 mb-6">Estos deseos llegarán pronto.</p>
 
         {/* QR inferior derecho */}
         <div className="fixed bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-col items-center z-[999]">

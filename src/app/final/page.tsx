@@ -53,7 +53,7 @@ export default function WishesAnimationPage() {
   // Constants
   const WISHES_PER_FETCH = 10;
   const FETCH_INTERVAL_MS = 5000; // 30 seconds
-  const RESTART_INTERVAL_MS = 8000
+  const RESTART_INTERVAL_MS = 8000;
 
   // Resolver eventId desde params
   useEffect(() => {
@@ -92,15 +92,19 @@ export default function WishesAnimationPage() {
     loadEvent();
   }, [eventId]);
 
-  // Listener Realtime: events/{eventId}/controls/start
-  useEffect(() => {
-    if (!eventId) return;
-    const realtime = getDatabase();
-    const controlRef = ref(realtime, `events/${eventId}/controls/start`);
+  // Listener Realtime: events/{eventId}/controls/{start, mode}
+// Dentro del useEffect donde escuchas el controlRef
+useEffect(() => {
+  if (!eventId) return;
+  const realtime = getDatabase();
+  const controlRef = ref(realtime, `events/${eventId}/controls`);
 
-    const unsubscribe = onValue(controlRef, (snap) => {
-      const value = snap.val();
-      if (value === true) {
+  const unsubscribe = onValue(controlRef, (snap) => {
+    const v = snap.val() || {};
+
+    // start
+    if (typeof v.start === "boolean") {
+      if (v.start) {
         setStartedRemotely(true);
       } else {
         setStartedRemotely(false);
@@ -112,31 +116,38 @@ export default function WishesAnimationPage() {
         lastDocRef.current = null;
         isLastFetchRef.current = false;
       }
-    });
+    }
 
-    return () => unsubscribe();
-  }, [eventId]);
+    // 🚀 redirect
+    if (v.redirect === "/finalmsn") {
+      router.push("/finalmsn");
+    }
+  });
 
-  const initialCreatedAtRef = useRef<Timestamp | null>(null); 
-  const lastCreatedAtRef = useRef<firebase.firestore.Timestamp | null>(null)
+  return () => unsubscribe();
+}, [eventId, router]);
+
+
+  const initialCreatedAtRef = useRef<Timestamp | null>(null);
+  const lastCreatedAtRef = useRef<firebase.firestore.Timestamp | null>(null);
   // Fetch wishes periodically
   useEffect(() => {
     if (!startedRemotely || !eventId) return;
-  
+
     const fetchWishes = async () => {
       // Si ya cargamos wishes para este evento y start sigue true, solo reproducir
       if (loadedForStartRef.current === eventId && currentWishes.length > 0) {
         if (!isPlaying) setIsPlaying(true);
         return;
       }
-  
+
       setError(null);
       try {
         const wishesRef = collection(db, "events", eventId, "wishes");
-        
+
         // Construir query base
         let qy;
-        
+
         if (lastCreatedAtRef.current) {
           // Paginación: cargar wishes ANTERIORES al último createdAt visto
           qy = query(
@@ -157,12 +168,15 @@ export default function WishesAnimationPage() {
             fqLimit(WISHES_PER_FETCH)
           );
         }
-  
+
         const snapshot = await getDocs(qy);
         console.log("📦 Wishes fetched:", snapshot.docs.length);
-        
-        setWishImage([...wishImage, ...snapshot.docs.map((doc) => doc.data().photoUrl)]);
-        
+
+        setWishImage([
+          ...wishImage,
+          ...snapshot.docs.map((doc) => doc.data().photoUrl),
+        ]);
+
         const wishesData: Wish[] = snapshot.docs
           .map((doc) => ({
             id: doc.id,
@@ -178,18 +192,20 @@ export default function WishesAnimationPage() {
             public: doc.data().public || true,
           }))
           .filter((w) => w.photoUrl);
-  
+
         // Si no hay más wishes antiguos
         if (wishesData.length === 0) {
-          console.log("🏁 No more old wishes, will check for new ones next cycle");
+          console.log(
+            "🏁 No more old wishes, will check for new ones next cycle"
+          );
           isLastFetchRef.current = true;
           setIsPreparing(false);
           return;
         }
-  
+
         // IMPORTANTE: Si encontramos wishes, significa que hay datos
         isLastFetchRef.current = false;
-  
+
         // Guardar el createdAt del ÚLTIMO wish para continuar desde ahí
         if (wishesData.length > 0) {
           const lastWish = wishesData[wishesData.length - 1];
@@ -197,16 +213,16 @@ export default function WishesAnimationPage() {
             lastCreatedAtRef.current = Timestamp.fromDate(lastWish.createdAt);
           }
         }
-  
+
         // Agregar wishes sin reemplazar los anteriores
         setCurrentWishes((prev) => [...prev, ...wishesData]);
-        
+
         // Iniciar reproducción
         if (!isPlaying) {
           setCurrentIndex(0);
           setIsPlaying(true);
         }
-  
+
         // Precargar imágenes
         wishesData.forEach((w) => {
           if (w.photoUrl) {
@@ -214,7 +230,7 @@ export default function WishesAnimationPage() {
             img.src = w.photoUrl;
           }
         });
-  
+
         loadedForStartRef.current = eventId;
       } catch (e) {
         console.error("❌ Error cargando wishes:", e);
@@ -223,12 +239,12 @@ export default function WishesAnimationPage() {
         setIsPreparing(false);
       }
     };
-  
+
     const checkForNewWishes = async () => {
       console.log("🔍 Checking for brand new wishes...");
       try {
         const wishesRef = collection(db, "events", eventId, "wishes");
-        
+
         // Buscar wishes MÁS RECIENTES que el primero que vimos
         const qy = query(
           wishesRef,
@@ -238,10 +254,10 @@ export default function WishesAnimationPage() {
           orderBy("createdAt", "desc"),
           fqLimit(WISHES_PER_FETCH)
         );
-  
+
         const snapshot = await getDocs(qy);
         console.log("🆕 New wishes found:", snapshot.docs.length);
-  
+
         if (snapshot.docs.length > 0) {
           const wishesData: Wish[] = snapshot.docs
             .map((doc) => ({
@@ -258,18 +274,20 @@ export default function WishesAnimationPage() {
               public: doc.data().public || true,
             }))
             .filter((w) => w.photoUrl);
-  
+
           if (wishesData.length > 0) {
             // Actualizar la referencia inicial con el más reciente
             const newestWish = wishesData[0];
             if (newestWish.createdAt) {
-              initialCreatedAtRef.current = Timestamp.fromDate(newestWish.createdAt);
+              initialCreatedAtRef.current = Timestamp.fromDate(
+                newestWish.createdAt
+              );
             }
-  
+
             // Agregar los nuevos wishes al final de la cola
             setCurrentWishes((prev) => [...prev, ...wishesData]);
             const urls = wishesData.map((w: Wish) => w.photoUrl as string);
-            setWishImage(urls);
+            setWishImage((prev: string[]) => [...prev, ...urls]);
             // Precargar imágenes
             wishesData.forEach((w) => {
               if (w.photoUrl) {
@@ -277,7 +295,7 @@ export default function WishesAnimationPage() {
                 img.src = w.photoUrl;
               }
             });
-  
+
             console.log("✅ Added new wishes to queue");
             isLastFetchRef.current = false; // Reiniciar el flag
           }
@@ -286,10 +304,10 @@ export default function WishesAnimationPage() {
         console.error("❌ Error checking new wishes:", e);
       }
     };
-  
+
     // Carga inicial
     fetchWishes();
-  
+
     // Fetch periódico
     const interval = setInterval(() => {
       if (isLastFetchRef.current) {
@@ -302,20 +320,20 @@ export default function WishesAnimationPage() {
         fetchWishes();
       }
     }, FETCH_INTERVAL_MS);
-  
+
     return () => clearInterval(interval);
   }, [startedRemotely, eventId]);
-  
-  
+
   // Auto-play animation
   useEffect(() => {
-    if (!isPlaying || (currentWishes.length === 0 && lastWishes.length === 0)) return;
-  
+    if (!isPlaying || (currentWishes.length === 0 && lastWishes.length === 0))
+      return;
+
     const interval = setInterval(() => {
       setCurrentIndex((prev) => {
         const activeWishes = lastWishes.length > 0 ? lastWishes : currentWishes;
         const nextIndex = prev + 1;
-        
+
         // Si llegamos al final de los wishes actuales
         if (nextIndex >= activeWishes.length) {
           // Si hay más wishes por cargar, volver al inicio
@@ -325,16 +343,17 @@ export default function WishesAnimationPage() {
           // Si es la última página, quedarse en el último
           return prev;
         }
-        
+
         return nextIndex;
       });
     }, 5000);
-  
+
     return () => clearInterval(interval);
   }, [isPlaying, currentWishes.length, lastWishes.length]); // ✅ Agregar dependencias
   // Auto-play animation
   useEffect(() => {
-    if (!isPlaying || (currentWishes.length === 0 && lastWishes.length === 0)) return;
+    if (!isPlaying || (currentWishes.length === 0 && lastWishes.length === 0))
+      return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => {
@@ -450,12 +469,12 @@ export default function WishesAnimationPage() {
   return (
     <div>
       <AnimationComponent
-        photoUrls= {currentWishes.map((w: Wish) => w.photoUrl as string)}
-        message= {event?.settings.textFinal || "FENALCO 80 AÑOS"}
+        photoUrls={currentWishes.map((w: Wish) => w.photoUrl as string)}
+        message={event?.settings.textFinal || "FENALCO 80 AÑOS"}
         isImages={isImages}
       />
       <div className="fixed bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-col items-center z-[999]">
-        <QRCode value={origin || "https://example.com"} size={300} />
+        <QRCode value={origin || "https://example.com"} size={150} />
         {origin ? (
           <span className="text-[10px] font-medium text-gray-700 mt-2">
             {origin}
