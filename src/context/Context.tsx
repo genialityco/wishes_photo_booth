@@ -27,37 +27,20 @@ export const defaultTextStyle: TextStyle = {
 };
 
 interface WishStyleContextType {
-  wishStyle: TextStyle;
-  setWishStyle: (style: TextStyle | ((prev: TextStyle) => TextStyle)) => void;
-  updateWishStyle: (partialStyle: Partial<TextStyle>) => void;
-  resetWishStyle: () => void;
-
+  wishImage: string[];
+  setWishImage: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const WishStyleContext = createContext<WishStyleContextType | undefined>(undefined);
 
 export const WishStyleProvider = ({ children }: { children: ReactNode }) => {
-  const [wishStyle, setWishStyle] = useState<TextStyle>(defaultTextStyle);
-
-  const updateWishStyle = (partialStyle: Partial<TextStyle>) => {
-    setWishStyle((prev) => ({ ...prev, ...partialStyle }));
-  };
-
-  const resetWishStyle = () => {
-    setWishStyle(defaultTextStyle);
-  };
-
-  // Convertir TextStyle a React.CSSProperties para usar en componentes
-
+  const [wishImage, setWishImage] = useState<string[]>([]);
 
   return (
     <WishStyleContext.Provider
       value={{
-        wishStyle,
-        setWishStyle,
-        updateWishStyle,
-        resetWishStyle,
-  
+        wishImage,
+        setWishImage, // Ahora pasa el setter directo de useState
       }}
     >
       {children}

@@ -3,10 +3,12 @@
 import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
 import ShoppingBasketScene from "./ShoppingBasketScene";
+import WaterfallImageApp from "./ImagesCascade";
 
 export default function AnimationComponent({
   photoUrls = [] as (string | undefined)[],
   message = "HOLA" as string,
+  isImages = true,
 }) {
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden" }}>
@@ -40,7 +42,11 @@ export default function AnimationComponent({
       {/* CANVAS DE THREE.JS */}
       <Canvas gl={{ antialias: true }} camera={{ fov: 75, position: [0, 0, 60] }}>
         <Suspense fallback={null}>
-          <ShoppingBasketScene photoUrls={photoUrls} message={message} />
+        {isImages ? (
+    <WaterfallImageApp />
+  ) : (
+    <ShoppingBasketScene photoUrls={photoUrls} message={message} />
+  )}
         </Suspense>
       </Canvas>
     </div>

@@ -47,7 +47,7 @@ export type Wish = {
     eventId: string;
     userName: string;
     message: string;
-    photoUrl?: string;
+    photoUrl: string;
     createdAt: Date | null;
     approved: boolean;
     deviceType: string;
