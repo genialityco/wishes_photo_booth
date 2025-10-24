@@ -13,8 +13,8 @@ export default function ShoppingBasketScene({ photoUrls, message }) {
   
   const textures = useLoader(THREE.TextureLoader, photoUrls);
   const [phase, setPhase] = useState(0);
-  const numBasketsPhase1_2 = 100;
-  const numBasketsPhase3 = 2000;
+  const numBasketsPhase1_2 = 70;
+  const numBasketsPhase3 = 1500;
   const numBaskets = numBasketsPhase3;
 
   // 🌊 CONFIGURACIÓN DE CASCADAS

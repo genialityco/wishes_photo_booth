@@ -153,7 +153,7 @@ export default function WishesAnimationPage() {
           where("approved", "==", true),
           where("public", "==", true),
           orderBy("createdAt", "desc"),
-          fqLimit(300)
+          fqLimit(80)
         );
 
         const snapshot = await getDocs(qy);
