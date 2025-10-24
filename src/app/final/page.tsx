@@ -92,41 +92,69 @@ export default function WishesAnimationPage() {
     loadEvent();
   }, [eventId]);
 
-  // Listener Realtime: events/{eventId}/controls/{start, mode}
-// Dentro del useEffect donde escuchas el controlRef
-useEffect(() => {
-  if (!eventId) return;
-  const realtime = getDatabase();
-  const controlRef = ref(realtime, `events/${eventId}/controls`);
+  const lastReloadAtRef = useRef<number | null>(null);
 
-  const unsubscribe = onValue(controlRef, (snap) => {
-    const v = snap.val() || {};
+  useEffect(() => {
+    if (!eventId) return;
+    const rtdb = getDatabase();
+    const reloadRef = ref(rtdb, `events/${eventId}/controls/reloadAt`);
 
-    // start
-    if (typeof v.start === "boolean") {
-      if (v.start) {
-        setStartedRemotely(true);
-      } else {
-        setStartedRemotely(false);
-        setIsPlaying(false);
-        setCurrentIndex(0);
-        setCurrentWishes([]);
-        setLastWishes([]);
-        loadedForStartRef.current = null;
-        lastDocRef.current = null;
-        isLastFetchRef.current = false;
+    const unsub = onValue(reloadRef, (snap) => {
+      const val = snap.val(); // number | null
+      if (typeof val !== "number") return;
+
+      // Evitar refrescar en la primera lectura (valor actual)
+      if (lastReloadAtRef.current === null) {
+        lastReloadAtRef.current = val;
+        return;
       }
-    }
 
-    // 🚀 redirect
-    if (v.redirect === "/finalmsn") {
-      router.push("/finalmsn");
-    }
-  });
+      if (val !== lastReloadAtRef.current) {
+        lastReloadAtRef.current = val;
+        // Forzar reload completo (mejor que router.refresh() para tu canvas/animación)
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
+      }
+    });
 
-  return () => unsubscribe();
-}, [eventId, router]);
+    return () => unsub();
+  }, [eventId]);
 
+  // Listener Realtime: events/{eventId}/controls/{start, mode}
+  // Dentro del useEffect donde escuchas el controlRef
+  useEffect(() => {
+    if (!eventId) return;
+    const realtime = getDatabase();
+    const controlRef = ref(realtime, `events/${eventId}/controls`);
+
+    const unsubscribe = onValue(controlRef, (snap) => {
+      const v = snap.val() || {};
+
+      // start
+      if (typeof v.start === "boolean") {
+        if (v.start) {
+          setStartedRemotely(true);
+        } else {
+          setStartedRemotely(false);
+          setIsPlaying(false);
+          setCurrentIndex(0);
+          setCurrentWishes([]);
+          setLastWishes([]);
+          loadedForStartRef.current = null;
+          lastDocRef.current = null;
+          isLastFetchRef.current = false;
+        }
+      }
+
+      // 🚀 redirect
+      if (v.redirect === "/finalmsn") {
+        router.push("/finalmsn");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [eventId, router]);
 
   const initialCreatedAtRef = useRef<Timestamp | null>(null);
   const lastCreatedAtRef = useRef<firebase.firestore.Timestamp | null>(null);

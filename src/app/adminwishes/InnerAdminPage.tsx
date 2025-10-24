@@ -15,13 +15,17 @@ export default function InnerAdminPage() {
   );
   const [eventId, setEventId] = useState(initialEventId);
   const [dirty, setDirty] = useState(false);
-  const [rtdb, setRtdb] = useState<import("firebase/database").Database | null>(null);
+  const [rtdb, setRtdb] = useState<import("firebase/database").Database | null>(
+    null
+  );
   const [start, setStart] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     getDatabaseBrowser().then((db) => mounted && setRtdb(db));
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const baseRef = useMemo(
@@ -70,7 +74,10 @@ export default function InnerAdminPage() {
           <div className="ml-auto flex items-center gap-2">
             <input
               value={eventId}
-              onChange={(e) => { setEventId(e.target.value); setDirty(true); }}
+              onChange={(e) => {
+                setEventId(e.target.value);
+                setDirty(true);
+              }}
               placeholder="eventId..."
               className="w-[280px] rounded-md border px-3 py-2 text-sm"
             />
@@ -78,7 +85,9 @@ export default function InnerAdminPage() {
               onClick={applyEventIdToUrl}
               disabled={!dirty || !eventId}
               className={`rounded-md px-3 py-2 text-sm font-medium ${
-                dirty && eventId ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-gray-200 text-gray-600"
+                dirty && eventId
+                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                  : "bg-gray-200 text-gray-600"
               }`}
             >
               Aplicar
@@ -110,12 +119,19 @@ export default function InnerAdminPage() {
                 Detener
               </button>
               <span className="ml-4 text-sm">
-                Estado: {start ? <b className="text-emerald-700">Iniciado</b> : <b className="text-gray-700">Detenido</b>}
+                Estado:{" "}
+                {start ? (
+                  <b className="text-emerald-700">Iniciado</b>
+                ) : (
+                  <b className="text-gray-700">Detenido</b>
+                )}
               </span>
             </div>
 
             <p className="text-xs text-gray-500">
-              Escribe <span className="font-mono">events/{eventId}/controls/start</span> en Realtime DB.
+              Escribe{" "}
+              <span className="font-mono">events/{eventId}/controls/start</span>{" "}
+              en Realtime DB.
             </p>
 
             {/* 🔀 Controles de redirect */}
@@ -141,9 +157,23 @@ export default function InnerAdminPage() {
             </div>
 
             <p className="text-xs text-gray-500">
-              Usa <span className="font-mono">events/{eventId}/controls/redirect</span> con
-              <span className="font-mono"> /finalmsn</span>, <span className="font-mono">/final</span> o <span className="font-mono">null</span>.
+              Usa{" "}
+              <span className="font-mono">
+                events/{eventId}/controls/redirect
+              </span>{" "}
+              con
+              <span className="font-mono"> /finalmsn</span>,{" "}
+              <span className="font-mono">/final</span> o{" "}
+              <span className="font-mono">null</span>.
             </p>
+            <button
+              onClick={() =>
+                baseRef && update(baseRef, { reloadAt: Date.now() })
+              }
+              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Refrescar pantallas
+            </button>
           </div>
         )}
       </section>

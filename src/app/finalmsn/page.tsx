@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   collection,
@@ -83,6 +83,33 @@ export default function WishesAnimationPage() {
       setOrigin(window.location.origin);
     }
   }, []);
+
+  const lastReloadAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!eventId) return;
+    const rtdb = getDatabase();
+    const reloadRef = ref(rtdb, `events/${eventId}/controls/reloadAt`);
+
+    const unsub = onValue(reloadRef, (snap) => {
+      const val = snap.val();
+      if (typeof val !== "number") return;
+
+      if (lastReloadAtRef.current === null) {
+        lastReloadAtRef.current = val;
+        return;
+      }
+
+      if (val !== lastReloadAtRef.current) {
+        lastReloadAtRef.current = val;
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [eventId]);
 
   // Listener Realtime: events/{eventId}/controls/start
   useEffect(() => {
