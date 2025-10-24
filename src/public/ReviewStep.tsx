@@ -1,23 +1,18 @@
-/* ==============================
- * ReviewStep.tsx
- * (preview sólo visual + botón Confirmar/Enviar en el footer del propio componente)
- * Estructura y tamaño idénticos a Capture/Preview
- * ============================== */
-
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ButtonPrimary from "./components/button";
+import { useBlowDetector } from "../hooks/useBlowDetector";
+import BlowParticlesOverlay from "./components/BlowParticlesOverlay";
 
 export default function ReviewStep({
   framedShot,
   onConfirmSend,
 }: {
-  framedShot: string;             // imagen final (idealmente con texto ya aplicado)
-  onConfirmSend: () => void;      // acción de Confirmar y Enviar
+  framedShot: string;
+  onConfirmSend: () => void;
 }) {
-  // Refs y estados para replicar EXACTA estructura/medidas de Capture/Preview
   const headerRef = useRef<HTMLElement | null>(null);
   const footerRef = useRef<HTMLElement | null>(null);
   const frameImgRef = useRef<HTMLImageElement | null>(null);
@@ -25,16 +20,48 @@ export default function ReviewStep({
   const [frameNat, setFrameNat] = useState<{ w: number; h: number } | null>(null);
   const [display, setDisplay] = useState<{ w: number; h: number } | null>(null);
 
+  // --- Detección de soplo ---
+  const REQUIRED_MS = 2500;
+  const { start, stop, permission, active, level, blowing, elapsedMs, targetMs, done } =
+    useBlowDetector({ threshold: 0.035, targetMs: REQUIRED_MS });
+
+  // Intento de auto-start al entrar a Review
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await start();
+      } catch {
+      }
+      if (cancelled) return;
+    })();
+
+    return () => {
+      cancelled = true;
+      stop(); // liberar recursos al salir del step
+    };
+  }, [start, stop]);
+
+  // Enviar cuando complete el soplo requerido
+  useEffect(() => {
+    if (done) {
+      setTimeout(() => {
+        stop();
+        onConfirmSend();
+      }, 150);
+    }
+  }, [done, stop, onConfirmSend]);
+
+  // Layout base
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, []);
 
-  // === computeDisplay (idéntico a CaptureStep/PreviewStep) ===
   const computeDisplay = useCallback((natW: number, natH: number) => {
     const vw = Math.min(window.innerWidth, 1280);
     const sidePadding = 32 * 2;
     const maxW = Math.max(280, Math.min(vw - sidePadding, 960));
-
     const hdr = headerRef.current?.offsetHeight ?? 0;
     const ftr = footerRef.current?.offsetHeight ?? 0;
     const verticalGaps = 24 + 24;
@@ -42,24 +69,20 @@ export default function ReviewStep({
 
     let dispW = Math.min(maxW, Math.round(maxH * (natW / natH)));
     let dispH = Math.round(dispW * (natH / natW));
-
     if (dispH > maxH) {
       dispH = Math.round(maxH);
       dispW = Math.round(dispH * (natW / natH));
     }
-
     setDisplay({ w: dispW, h: dispH });
   }, []);
 
-  // Cargar la foto resultante y obtener tamaño nativo
+  // Cargar foto y tamaños
   useEffect(() => {
     let cancelled = false;
-
     const afterHaveNat = (w: number, h: number) => {
       setFrameNat({ w, h });
       computeDisplay(w, h);
     };
-
     if (!framedShot) return;
 
     (async () => {
@@ -70,28 +93,21 @@ export default function ReviewStep({
         await img.decode();
         if (cancelled) return;
         frameImgRef.current = img;
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        afterHaveNat(w, h);
+        afterHaveNat(img.naturalWidth || img.width, img.naturalHeight || img.height);
       } catch {
         const img = new Image();
         img.src = framedShot;
         img.onload = () => {
           if (cancelled) return;
           frameImgRef.current = img;
-          const w = img.naturalWidth || img.width;
-          const h = img.naturalHeight || img.height;
-          afterHaveNat(w, h);
+          afterHaveNat(img.naturalWidth || img.width, img.naturalHeight || img.height);
         };
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [framedShot, computeDisplay]);
 
-  // Recalcular display en resize/orientación
   useEffect(() => {
     if (!frameNat) return;
     const onResize = () => computeDisplay(frameNat.w, frameNat.h);
@@ -103,6 +119,26 @@ export default function ReviewStep({
     };
   }, [frameNat, computeDisplay]);
 
+  const progress = Math.min(1, elapsedMs / targetMs);
+  const glowStrength = Math.min(0.6, 0.1 + level * 1.5);
+  const [manualSending, setManualSending] = useState(false);
+
+  const handleManualSend = async () => {
+    if (manualSending) return;
+    setManualSending(true);
+    try {
+      if (active) stop();
+      onConfirmSend();
+    } finally {
+      setManualSending(false);
+    }
+  };
+
+  const needEnableButton =
+    !active && (permission === "idle" || permission === "prompt"); // Safari/iOS por auto-start fallido
+
+  const showMicError = permission === "denied" || permission === "error";
+
   return (
     <div
       className="
@@ -112,7 +148,7 @@ export default function ReviewStep({
         pb-[env(safe-area-inset-bottom)]
       "
     >
-      {/* HEADER (misma posición) */}
+      {/* HEADER */}
       <header
         ref={headerRef}
         className="z-40 w-full"
@@ -138,7 +174,7 @@ export default function ReviewStep({
         </div>
       </header>
 
-      {/* MAIN (idéntico layout/offset) */}
+      {/* MAIN */}
       <main
         className="z-30 mx-auto flex w-full max-w-6xl items-center justify-center"
         style={{ position: "absolute", top: "15%" }}
@@ -149,33 +185,84 @@ export default function ReviewStep({
               className="relative"
               style={{ width: `${display.w}px`, height: `${display.h}px` }}
             >
-              {/* Imagen final (con o sin texto) */}
               <img
                 src={framedShot}
                 alt="Revisión final"
                 className="absolute inset-0 w-full h-full object-contain select-none"
                 draggable={false}
+                style={{
+                  filter: blowing
+                    ? `drop-shadow(0 0 ${Math.round(24 + 36*glowStrength)}px rgba(255,255,255,${0.35+glowStrength}))`
+                    : "none",
+                  transition: "filter 120ms linear",
+                }}
               />
+
+              <BlowParticlesOverlay
+                intensity={Math.min(1, level * 3)}
+                playing={blowing}
+                width={display.w}
+                height={display.h}
+              />
+
+              <div
+                className="absolute left-3 top-3 text-xs md:text-sm bg-black/50 px-2 py-1 rounded"
+                aria-live="polite"
+              >
+                {showMicError
+                  ? "Micrófono no disponible"
+                  : done
+                  ? "¡Listo!"
+                  : active
+                  ? (blowing ? "Soplando…" : "Listo para soplar")
+                  : "Activando micrófono…"}
+                {" · "}
+                {Math.round(progress * 100)}%
+              </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* FOOTER: único botón Confirmar y Enviar */}
+      {/* FOOTER */}
       <footer
         ref={footerRef}
         className="z-40"
         style={{ position: "absolute", bottom: "3%", width: "100%" }}
       >
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-center">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex flex-col items-center justify-center gap-3">
+          {needEnableButton && !showMicError && (
+            <ButtonPrimary
+              onClick={start}
+              label="Activar micrófono"
+              imageSrc="/CORTES/BOTONES/BOTON-LARGO.png"
+              width={260}
+              height={54}
+              ariaLabel="Activar micrófono para soplar y enviar"
+            />
+          )}
+
+          {/* Botón manual */}
           <ButtonPrimary
-            onClick={onConfirmSend}
-            label="CONFIRMAR Y ENVIAR"
+            onClick={handleManualSend}
+            label={manualSending ? "ENVIANDO…" : "CONFIRMAR Y ENVIAR"}
             imageSrc="/CORTES/BOTONES/BOTON-LARGO.png"
             width={300}
             height={60}
             ariaLabel="Confirmar y enviar deseo"
           />
+
+          {/* Mensajitos contextuales */}
+          {permission === "prompt" && !active && (
+            <p className="text-white/70 text-sm">
+              Concede acceso al micrófono para soplar y enviar automáticamente.
+            </p>
+          )}
+          {showMicError && (
+            <p className="text-red-300 text-sm text-center">
+              No se pudo usar el micrófono. Usa “Confirmar y enviar”.
+            </p>
+          )}
         </div>
       </footer>
     </div>
