@@ -55,6 +55,9 @@ export default function WishesAnimationPage() {
   const FETCH_INTERVAL_MS = 5000; // 30 seconds
   const RESTART_INTERVAL_MS = 8000;
 
+  const [qrMode, setQrMode] = useState<"hidden" | "mini" | "large">("mini");
+  const [qrValueOverride, setQrValueOverride] = useState<string | null>(null);
+
   // Resolver eventId desde params
   useEffect(() => {
     if (params?.eventId) {
@@ -151,6 +154,14 @@ export default function WishesAnimationPage() {
       if (v.redirect === "/finalmsn") {
         router.push("/finalmsn");
       }
+      if (
+        v.qrMode === "hidden" ||
+        v.qrMode === "mini" ||
+        v.qrMode === "large"
+      ) {
+        setQrMode(v.qrMode);
+      }
+      setQrValueOverride(typeof v.qrValue === "string" ? v.qrValue : null);
     });
 
     return () => unsubscribe();
@@ -459,14 +470,45 @@ export default function WishesAnimationPage() {
           </h2>
           <p className="opacity-80 mb-6">Estos deseos llegarán pronto.</p>
         </div>
-        <div className="fixed bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-col items-center z-20">
-          <QRCode value={origin || "https://example.com"} size={150} />
-          {origin ? (
-            <span className="text-[10px] font-medium text-gray-700 mt-2">
-              {origin}
-            </span>
-          ) : null}
-        </div>
+        {/* QR dinámico controlado por admin */}
+        {qrMode !== "hidden" && (
+          <>
+            {qrMode === "mini" ? (
+              // Mini: esquina inferior derecha
+              <div className="fixed bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-col items-center z-[999]">
+                <QRCode
+                  value={qrValueOverride || origin || "https://example.com"}
+                  size={150}
+                />
+                {qrValueOverride || origin ? (
+                  <span className="text-[10px] font-medium text-gray-700 mt-2 max-w-[160px] truncate">
+                    {qrValueOverride || origin}
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              // Large: overlay centrado pantalla
+              <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/60" />
+                <div className="relative bg-white/90 backdrop-blur-md rounded-2xl p-6 shadow-2xl flex flex-col items-center">
+                  <QRCode
+                    value={qrValueOverride || origin || "https://example.com"}
+                    size={280}
+                  />
+                  {qrValueOverride || origin ? (
+                    <span className="mt-3 text-xs font-medium text-gray-800 max-w-[80vw] break-all text-center">
+                      {qrValueOverride || origin}
+                    </span>
+                  ) : null}
+                  {/* Sugerencia UX: un hint para el público */}
+                  <span className="mt-2 text-[11px] text-gray-600">
+                    Escanéalo con tu cámara 📱
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
   }

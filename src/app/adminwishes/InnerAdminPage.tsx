@@ -176,6 +176,33 @@ export default function InnerAdminPage() {
             </button>
           </div>
         )}
+
+        {/* 🎯 Controles de QR */}
+        <div className="space-y-2 border-t pt-4">
+          <div className="text-sm font-medium text-gray-700">
+            Control del QR
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => baseRef && update(baseRef, { qrMode: "hidden" })}
+              className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-900"
+            >
+              Ocultar
+            </button>
+            <button
+              onClick={() => baseRef && update(baseRef, { qrMode: "mini" })}
+              className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white"
+            >
+              Mostrar mini (esquina)
+            </button>
+            <button
+              onClick={() => baseRef && update(baseRef, { qrMode: "large" })}
+              className="px-4 py-2 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-700 text-white"
+            >
+              Mostrar grande (centrado)
+            </button>
+          </div>
+        </div>
       </section>
     </main>
   );
