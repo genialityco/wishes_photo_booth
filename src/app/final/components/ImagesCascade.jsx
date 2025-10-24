@@ -9,8 +9,8 @@ export default function CascadeAnimation() {
   const { wishImage } = useWishStyle();
 
   // 🌊 CONFIG
-  const photoWidth = 12;
-  const photoHeight = 16;
+  const photoWidth = 18;
+  const photoHeight = 24;
   const spacingX = 16;
   const spacingY = 20;
   const pushDownSpeed = 0.08;
